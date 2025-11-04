@@ -1,16 +1,18 @@
-import type { ClaimRecord } from "../../types/claims";
+import type { ClaimRecord, Document } from "../../types/claims";
 import { parseDollarAmount, buildPropertyAddress, normalizeStatus } from "./helpers";
 import { parse } from "csv-parse/sync";
+import { readdir } from "fs/promises";
+import { join } from "path";
 
 /**
  * Converts string arrays (CSV rows) to ClaimRecord objects
  * Skips the header row and maps CSV columns to ClaimRecord fields
  */
-const parseClaims = (rows: string[][]): ClaimRecord[] => {
+const parseClaimsWithoutDocuments = (rows: string[][]): Omit<ClaimRecord, "documents">[] => {
     // Skip header row (first row)
     const dataRows = rows.slice(1);
     
-    return dataRows.map((row: string[]): ClaimRecord => {
+    return dataRows.map((row: string[]): Omit<ClaimRecord, "documents"> => {
         return {
             trackingNumber: row[0] || "",
             claimDate: row[1] || undefined,
@@ -30,9 +32,52 @@ const parseClaims = (rows: string[][]): ClaimRecord[] => {
             policy: row[26] || undefined, // Policy
             maxBenefit: parseDollarAmount(row[27]), // Max Benefit
             status: normalizeStatus(row[28]), // Status
-            folderPath: row[0] || "", // Maps to trackingNumber (folder names are 1, 2, 3, etc.)
         };
     });
+}
+
+/**
+ * Loads documents for a single claim from its folder
+ */
+const loadDocumentsForClaim = async (trackingNumber: string): Promise<Document[]> => {
+    const documentsPath = join("./data/documents", trackingNumber);
+    
+    try {
+        const files = await readdir(documentsPath, { withFileTypes: true });
+        // console.log(files);
+        
+        return files
+            .filter(file => file.isFile()) // Only include files, not subdirectories
+            .map(file => {
+                const filename = file.name;
+                const filePath = join(documentsPath, filename);
+                
+                return {
+                    name: filename,
+                    path: filePath,
+                };
+            });
+    } catch (error) {
+        // Folder doesn't exist or can't be read - return empty array
+        console.warn(`Warning: Could not read documents for claim ${trackingNumber}: ${error}`);
+        return [];
+    }
+}
+
+/**
+ * Attaches documents to claims by reading document folders
+ * Processes claims in parallel for better performance
+ */
+const attachDocuments = async (claims: Omit<ClaimRecord, "documents">[]): Promise<ClaimRecord[]> => {
+    // Process all claims in parallel
+    const claimsWithDocuments = await Promise.all(
+        claims.map(async (claim) => {
+            const documents = await loadDocumentsForClaim(claim.trackingNumber);
+            return { ...claim, documents };
+        })
+    );
+    
+    return claimsWithDocuments;
 }
 
 /** 
@@ -48,15 +93,15 @@ const extractClaimData = async (filePath: string): Promise<ClaimRecord[]> => {
         skip_empty_lines: true,
     });
 
-    // first 5 rows
+    // todo: remove after testing
     const first5Rows = rows.slice(0, 5);
 
     // sanitize the rows (string[][] to ClaimRecord[])
-    const claimsRecords = parseClaims(first5Rows);
+    const claimsWithoutDocuments = parseClaimsWithoutDocuments(first5Rows);
 
+    // add documents to each claim record
+    const claimsRecords = await attachDocuments(claimsWithoutDocuments);
     
-    // log first 5 rows
-    console.log(claimsRecords);
     return claimsRecords;
 }
 

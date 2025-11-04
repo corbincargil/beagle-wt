@@ -1,3 +1,20 @@
+type DocumentType = "lease_addendum" | "lease_agreement" | "notification_to_tenant" | "tenant_ledger" | "invoice" | "claim_evaluation_report";
+
+export interface Document {
+  type?: DocumentType;
+  name: string;
+  path: string;
+}
+
+const RequiredDocuments: DocumentType[] = ["lease_addendum", "lease_agreement", "notification_to_tenant", "tenant_ledger"];
+const OptionalDocuments: DocumentType[] = ["invoice", "claim_evaluation_report"];
+
+interface ChargeItem {
+  description: string;
+  amount: number;
+  category?: string;
+}
+
 export interface ClaimRecord {
     trackingNumber: string;
     claimDate?: string;
@@ -12,19 +29,8 @@ export interface ClaimRecord {
     policy?: string;
     maxBenefit?: number;
     status?: "posted" | "declined";
-    folderPath: string; // maps to the folder (1, 2, 3, etc.)
+    documents: Document[];
   }
-  
-  interface ChargeItem {
-    description: string;
-    amount: number;
-    category?: string;
-  }
-
-  type DocumentType = "lease_addendum" | "lease_agreement" | "notification_to_tenant" | "tenant_ledger" | "invoice" | "claim_evaluation_report";
-
-  const RequiredDocuments: DocumentType[] = ["lease_addendum", "lease_agreement", "notification_to_tenant", "tenant_ledger"];
-  const OptionalDocuments: DocumentType[] = ["invoice", "claim_evaluation_report"];
   
   export interface ClaimResult {
     trackingNumber: string;
