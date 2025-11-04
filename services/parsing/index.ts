@@ -1,4 +1,4 @@
-import type { ClaimRecord, Document } from "../../types/claims";
+import type { ClaimRecord, Document, ClaudeFile } from "../../types/claims";
 import { parseDollarAmount, buildPropertyAddress, normalizeStatus } from "./helpers";
 import { parse } from "csv-parse/sync";
 import { readdir } from "fs/promises";
@@ -8,11 +8,11 @@ import { join } from "path";
  * Converts string arrays (CSV rows) to ClaimRecord objects
  * Skips the header row and maps CSV columns to ClaimRecord fields
  */
-const parseClaimsWithoutDocuments = (rows: string[][]): Omit<ClaimRecord, "documents">[] => {
+const parseClaimsWithoutDocuments = (rows: string[][]): Omit<ClaimRecord, "documents" | "claudeFiles">[] => {
     // Skip header row (first row)
     const dataRows = rows.slice(1);
     
-    return dataRows.map((row: string[]): Omit<ClaimRecord, "documents"> => {
+    return dataRows.map((row: string[]): Omit<ClaimRecord, "documents" | "claudeFiles"> => {
         return {
             trackingNumber: row[0] || "",
             claimDate: row[1] || undefined,
@@ -44,7 +44,6 @@ const loadDocumentsForClaim = async (trackingNumber: string): Promise<Document[]
     
     try {
         const files = await readdir(documentsPath, { withFileTypes: true });
-        // console.log(files);
         
         return files
             .filter(file => file.isFile()) // Only include files, not subdirectories
@@ -65,15 +64,17 @@ const loadDocumentsForClaim = async (trackingNumber: string): Promise<Document[]
 }
 
 /**
- * Attaches documents to claims by reading document folders
+ * Attaches documents and claudeFiles to claims by reading document folders
  * Processes claims in parallel for better performance
  */
-const attachDocuments = async (claims: Omit<ClaimRecord, "documents">[]): Promise<ClaimRecord[]> => {
+const attachDocuments = async (claims: Omit<ClaimRecord, "documents" | "claudeFiles">[]): Promise<ClaimRecord[]> => {
     // Process all claims in parallel
     const claimsWithDocuments = await Promise.all(
         claims.map(async (claim) => {
             const documents = await loadDocumentsForClaim(claim.trackingNumber);
-            return { ...claim, documents };
+            // claudeFiles will be populated later when files are uploaded to Claude
+            const claudeFiles: ClaudeFile[] = [];
+            return { ...claim, documents, claudeFiles };
         })
     );
     

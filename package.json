@@ -10,6 +10,8 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "csv-parse": "^6.1.0"
+    "@anthropic-ai/sdk": "^0.68.0",
+    "csv-parse": "^6.1.0",
+    "pdf-parse": "^2.4.5"
   }
 }

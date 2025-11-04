@@ -6,6 +6,16 @@ export interface Document {
   path: string;
 }
 
+export interface ClaudeFile {
+  id: string;
+  type: "file";
+  filename: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string; // ISO date string
+  downloadable: boolean;
+}
+
 const RequiredDocuments: DocumentType[] = ["lease_addendum", "lease_agreement", "notification_to_tenant", "tenant_ledger"];
 const OptionalDocuments: DocumentType[] = ["invoice", "claim_evaluation_report"];
 
@@ -30,24 +40,25 @@ export interface ClaimRecord {
     maxBenefit?: number;
     status?: "posted" | "declined";
     documents: Document[];
+    claudeFiles: ClaudeFile[] | undefined;
   }
   
   export interface ClaimResult {
     trackingNumber: string;
     tenantName: string;
     status: "approved" | "declined";
-    finalPayout: number;
     maxBenefit: number;
     monthlyRent: number;
-    decisionSummary: string;
     isFirstMonthPaid: boolean;
     firstMonthPaidEvidence: string; // not sure about this data type
     isFirstMonthSDIPremiumPaid: boolean;
     firstMonthSDIPremiumPaidEvidence: string; // not sure about this data type
     missingRequiredDocuments: DocumentType[];
-    submittedDocuments: string[];
+    submittedDocuments: Document[];
     approvedCharges: ChargeItem[];
     approvedChargesTotal: number;
     excludedCharges: ChargeItem[];
+    finalPayout: number;
+    decisionSummary: string;
   }
   
