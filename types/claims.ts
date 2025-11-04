@@ -20,14 +20,28 @@ export interface ClaimRecord {
     amount: number;
     category?: string;
   }
+
+  type DocumentType = "lease_addendum" | "lease_agreement" | "notification_to_tenant" | "tenant_ledger" | "invoice" | "claim_evaluation_report";
+
+  const RequiredDocuments: DocumentType[] = ["lease_addendum", "lease_agreement", "notification_to_tenant", "tenant_ledger"];
+  const OptionalDocuments: DocumentType[] = ["invoice", "claim_evaluation_report"];
   
   export interface ClaimResult {
     trackingNumber: string;
-    approvedCharges: ChargeItem[];
-    excludedCharges: ChargeItem[];
-    totalApproved: number;
-    finalPayout: number;
+    tenantName: string;
     status: "approved" | "declined";
-    notes?: string;
+    finalPayout: number;
+    maxBenefit: number;
+    monthlyRent: number;
+    decisionSummary: string;
+    isFirstMonthPaid: boolean;
+    firstMonthPaidEvidence: string; // not sure about this data type
+    isFirstMonthSDIPremiumPaid: boolean;
+    firstMonthSDIPremiumPaidEvidence: string; // not sure about this data type
+    missingRequiredDocuments: DocumentType[];
+    submittedDocuments: string[];
+    approvedCharges: ChargeItem[];
+    approvedChargesTotal: number;
+    excludedCharges: ChargeItem[];
   }
   
