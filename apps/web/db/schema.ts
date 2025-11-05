@@ -1,3 +1,4 @@
+import { relations } from "drizzle-orm";
 import {
 	boolean,
 	jsonb,
@@ -84,3 +85,17 @@ export const claimResults = pgTable("claim_results", {
 	createdAt: timestamp("created_at").defaultNow().notNull(),
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+export const claimsRelations = relations(claims, ({ one }) => ({
+	claimResult: one(claimResults, {
+		fields: [claims.trackingNumber],
+		references: [claimResults.trackingNumber],
+	}),
+}));
+
+export const claimResultsRelations = relations(claimResults, ({ one }) => ({
+	claim: one(claims, {
+		fields: [claimResults.trackingNumber],
+		references: [claims.trackingNumber],
+	}),
+}));

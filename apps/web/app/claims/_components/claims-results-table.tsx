@@ -50,7 +50,12 @@ export default function ClaimsResultsTable() {
 					{data.map((claim) => (
 						<TableRow key={claim.id}>
 							<TableCell>{claim.trackingNumber}</TableCell>
-							<TableCell>{claim.tenantName}</TableCell>
+							<TableCell
+								className="max-w-[200px] truncate"
+								title={claim.tenantName || undefined}
+							>
+								{claim.tenantName}
+							</TableCell>
 							<TableCell>
 								<span
 									className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${

@@ -47,7 +47,12 @@ export default function ClaimsTable() {
 					{data.map((claim: ClaimRecord) => (
 						<TableRow key={claim.id}>
 							<TableCell>{claim.trackingNumber}</TableCell>
-							<TableCell>{claim.propertyAddress || "—"}</TableCell>
+							<TableCell
+								className="max-w-[200px] truncate"
+								title={claim.propertyAddress || undefined}
+							>
+								{claim.propertyAddress || "—"}
+							</TableCell>
 							<TableCell>
 								{claim.claimDate
 									? dateFormatter.format(new Date(claim.claimDate))

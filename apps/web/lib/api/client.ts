@@ -38,4 +38,8 @@ export const claimsApi = {
 	getClaimResults: async <T = unknown>(): Promise<T[]> => {
 		return apiFetch<T[]>("/api/claims-results");
 	},
+
+	getCombinedClaims: async <T = unknown>(): Promise<T[]> => {
+		return apiFetch<T[]>("/api/claims-combined");
+	},
 };
