@@ -1,11 +1,12 @@
 {
-	"name": "beagle-wt",
+	"name": "pipeline",
 	"module": "index.ts",
 	"type": "module",
 	"private": true,
 	"scripts": {
 		"cleanup-claude-files": "bun scripts/cleanup-claude-files.ts",
 		"server": "bun server.ts",
+		"dev": "bun --watch server.ts",
 		"dev:server": "bun --watch server.ts"
 	},
 	"devDependencies": {
