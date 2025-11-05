@@ -1,7 +1,7 @@
 type DocumentType = "lease_addendum" | "lease_agreement" | "notification_to_tenant" | "tenant_ledger" | "invoice" | "claim_evaluation_report";
 
 export interface Document {
-  type?: DocumentType;
+  types?: DocumentType[]; // multiple types are possible for a single document (e.g. agreement & addendum)
   name: string;
   path: string;
 }
