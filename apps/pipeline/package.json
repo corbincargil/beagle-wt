@@ -1,0 +1,21 @@
+{
+	"name": "beagle-wt",
+	"module": "index.ts",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"cleanup-claude-files": "bun scripts/cleanup-claude-files.ts"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"@anthropic-ai/sdk": "^0.68.0",
+		"csv-parse": "^6.1.0",
+		"pdf-parse": "^2.4.5",
+		"zod": "^4.1.12"
+	}
+}
