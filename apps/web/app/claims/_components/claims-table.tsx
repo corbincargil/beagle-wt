@@ -13,6 +13,8 @@ import { claimsApi } from "@/lib/api/client";
 import { centsToDollars } from "@/lib/currency";
 import { currencyFormatter, dateFormatter } from "@/lib/formatters";
 import type { ClaimRecord } from "../../../../../packages/shared/types/claims";
+import ErrorMessage from "./error-message";
+import Loading from "./loading";
 
 async function getClaims(): Promise<ClaimRecord[]> {
 	return claimsApi.getClaims<ClaimRecord>();
@@ -24,9 +26,9 @@ export default function ClaimsTable() {
 		queryFn: getClaims,
 	});
 
-	if (isLoading) return <div>Loading...</div>;
-	if (error) return <div>Error: {error.message}</div>;
-	if (!data) return <div>No data</div>;
+	if (isLoading) return <Loading rows={5} columns={7} title="Claims" />;
+	if (error) return <ErrorMessage message={error.message} />;
+	if (!data) return <ErrorMessage message="No data available" />;
 
 	return (
 		<div className="flex flex-col w-full">
