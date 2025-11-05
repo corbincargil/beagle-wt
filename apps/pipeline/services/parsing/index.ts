@@ -117,10 +117,10 @@ const extractClaimDataFromString = async (
 	// Apply limit if specified (for testing purposes)
 	const rowsToProcess = limitRows ? rows.slice(0, limitRows + 1) : rows;
 
-	// sanitize the rows (string[][] to ClaimRecord[])
+	// Sanitize the rows (string[][] to ClaimRecord[])
 	const claimsWithoutDocuments = parseClaimsWithoutDocuments(rowsToProcess);
 
-	// add documents to each claim record
+	// Add documents to each claim record
 	const claimsRecords = await attachDocuments(claimsWithoutDocuments);
 
 	return claimsRecords;

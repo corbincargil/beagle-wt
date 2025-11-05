@@ -99,7 +99,6 @@ export async function uploadClaimDocuments(
 				`Failed to upload document ${doc.name} for claim ${claim.trackingNumber}:`,
 				error,
 			);
-			// Return null for failed uploads - we'll filter these out
 			return null;
 		}),
 	);
@@ -126,7 +125,6 @@ export async function uploadMultipleClaimsDocuments(
 	claims: ClaimRecord[],
 ): Promise<ClaimRecord[]> {
 	// Process claims sequentially to avoid rate limiting
-	// You may want to add batching/concurrency control here
 	const results: ClaimRecord[] = [];
 
 	for (const claim of claims) {
@@ -141,7 +139,6 @@ export async function uploadMultipleClaimsDocuments(
 				`Failed to upload documents for claim ${claim.trackingNumber}:`,
 				error,
 			);
-			// Continue with other claims even if one fails
 			results.push(claim);
 		}
 	}

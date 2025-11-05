@@ -82,7 +82,6 @@ export async function processAllClaims(
 			const initialResult = await processClaimInitial(claim);
 
 			// Only proceed to Phase 2 if claim passed initial validation
-			// (You could add additional validation logic here if needed)
 			const finalResult = await processClaimCharges(claim, initialResult);
 
 			results.push(finalResult);
@@ -96,15 +95,12 @@ export async function processAllClaims(
 						`✗ Error in onResultProcessed callback for claim ${claim.trackingNumber}:`,
 						error,
 					);
-					// Continue processing even if callback fails
 				}
 			}
 
 			console.log(`✓ Completed processing claim ${claim.trackingNumber}\n`);
 		} catch (error) {
 			console.error(`✗ Error processing claim ${claim.trackingNumber}:`, error);
-			// Continue with next claim even if one fails
-			// Optionally, you could create a declined result here
 		}
 	}
 

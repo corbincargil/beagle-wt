@@ -131,7 +131,6 @@ export async function runPipeline(
 					`✗ Error saving claim result ${result.trackingNumber} to database:`,
 					error,
 				);
-				// Continue processing even if save fails
 			}
 		});
 
