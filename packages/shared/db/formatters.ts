@@ -1,5 +1,10 @@
-import type { ClaimRecord, ClaimResult } from "../types/claims";
-import { dollarsToCents } from "./currency";
+import type {
+	ClaimRecord,
+	ClaimResult,
+	ClaudeFile,
+	Document,
+} from "../types/claims";
+import { centsToDollars, dollarsToCents } from "./currency";
 
 /**
  * Parses a date string in MM/DD/YY format to a Date object
@@ -46,6 +51,19 @@ export function transformClaimResult(result: Omit<ClaimResult, "id">) {
 }
 
 /**
+ * Formats a Date object to MM/DD/YY string format
+ * @param date - Date object or null
+ * @returns Date string in MM/DD/YY format or undefined
+ */
+export const formatDate = (date: Date | null): string | undefined => {
+	if (!date) return undefined;
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	const year = String(date.getFullYear()).slice(-2);
+	return `${month}/${day}/${year}`;
+};
+
+/**
  * Transforms a ClaimRecord to database format
  * Converts dollar amounts to cents (as strings), parses dates, and handles null values
  */
@@ -70,5 +88,53 @@ export function transformClaim(record: Omit<ClaimRecord, "id">) {
 		status: record.status ?? null,
 		documents: record.documents,
 		claudeFiles: record.claudeFiles ?? null,
+	};
+}
+
+/**
+ * Transforms a database row back to ClaimRecord format
+ * Converts cents (numeric strings) back to dollars, formats dates to MM/DD/YY strings
+ * @param row - Database row from claims table
+ * @returns ClaimRecord object
+ */
+export function untransformClaim(row: {
+	id: string;
+	trackingNumber: string;
+	claimDate: Date | null;
+	propertyAddress: string | null;
+	leaseStartDate: Date | null;
+	leaseEndDate: Date | null;
+	moveOutDate: Date | null;
+	monthlyRent: string | null;
+	propertyManagementCompany: string | null;
+	groupNumber: string | null;
+	treatyNumber: string | null;
+	policy: string | null;
+	maxBenefit: string | null;
+	status: "posted" | "declined" | null;
+	documents: Document[];
+	claudeFiles: ClaudeFile[] | null;
+}): ClaimRecord {
+	return {
+		id: row.id,
+		trackingNumber: row.trackingNumber,
+		claimDate: formatDate(row.claimDate),
+		propertyAddress: row.propertyAddress ?? undefined,
+		leaseStartDate: formatDate(row.leaseStartDate),
+		leaseEndDate: formatDate(row.leaseEndDate),
+		moveOutDate: formatDate(row.moveOutDate),
+		monthlyRent: row.monthlyRent
+			? centsToDollars(parseFloat(row.monthlyRent))
+			: undefined,
+		propertyManagementCompany: row.propertyManagementCompany ?? undefined,
+		groupNumber: row.groupNumber ?? undefined,
+		treatyNumber: row.treatyNumber ?? undefined,
+		policy: row.policy ?? undefined,
+		maxBenefit: row.maxBenefit
+			? centsToDollars(parseFloat(row.maxBenefit))
+			: undefined,
+		status: row.status ?? undefined,
+		documents: row.documents,
+		claudeFiles: row.claudeFiles ?? undefined,
 	};
 }

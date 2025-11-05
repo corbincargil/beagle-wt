@@ -4,9 +4,9 @@ import db, {
 	pipelineJobs,
 	transformClaim,
 	transformClaimResult,
+	untransformClaim,
 } from "@beagle-wt/shared-db";
 import { eq } from "drizzle-orm";
-import type { ClaimRecord } from "../../../../packages/shared/types/claims";
 import { extractClaimDataFromString } from "../parsing";
 import { batchUploadDocuments } from "./batch-upload-documents";
 import { processAllClaims } from "./index";
@@ -16,13 +16,10 @@ interface RunPipelineOptions {
 	rowLimit?: number;
 	batchSize?: number;
 	jobId?: string;
-	sanitizedClaimsFilePath?: string;
-	claimsResultsFilePath?: string;
 }
 
 interface RunPipelineResult {
 	claimsProcessed: number;
-	resultsPath: string;
 }
 
 /**
@@ -33,14 +30,7 @@ interface RunPipelineResult {
 export async function runPipeline(
 	options: RunPipelineOptions,
 ): Promise<RunPipelineResult> {
-	const {
-		csvContent,
-		rowLimit = 5,
-		batchSize = 10,
-		jobId,
-		sanitizedClaimsFilePath = "./data/claims-records.json",
-		claimsResultsFilePath = "./data/claim-results.json",
-	} = options;
+	const { csvContent, rowLimit = 5, batchSize = 10, jobId } = options;
 
 	// Update job status to processing if jobId provided
 	if (jobId) {
@@ -60,16 +50,7 @@ export async function runPipeline(
 			rowLimit,
 		);
 
-		//* 2. Save sanitized claims to JSON file (before processing)
-		await Bun.write(
-			sanitizedClaimsFilePath,
-			JSON.stringify(claimsRecords, null, 2),
-		);
-		console.log(
-			`Saved ${claimsRecords.length} sanitized claims to ${sanitizedClaimsFilePath}`,
-		);
-
-		//* 2b. Save sanitized claims to database
+		//* 2. Save sanitized claims to database
 		console.log("\n💾 Saving claims to database...");
 		let savedClaimsCount = 0;
 		let failedClaimsCount = 0;
@@ -102,33 +83,16 @@ export async function runPipeline(
 		);
 
 		//* 3. Upload documents to Claude API in batches
-		// Temporarily set env var for batch upload function
-		const originalEnv = process.env.CLAIMS_RECORDS_FILE_PATH;
-		process.env.CLAIMS_RECORDS_FILE_PATH = sanitizedClaimsFilePath;
 		await batchUploadDocuments(batchSize);
-		if (originalEnv) {
-			process.env.CLAIMS_RECORDS_FILE_PATH = originalEnv;
-		} else {
-			delete process.env.CLAIMS_RECORDS_FILE_PATH;
-		}
 
 		//* 4. Process all claims through Phase 1 and Phase 2 analysis
 		console.log("\n🔍 Starting claim analysis...");
-		const allClaims = JSON.parse(
-			await Bun.file(sanitizedClaimsFilePath).text(),
-		) as ClaimRecord[];
+		// Fetch all claims from database
+		const allClaimsRows = await db.select().from(claims);
+		const allClaims = allClaimsRows.map((row) => untransformClaim(row));
 		const claimResultsData = await processAllClaims(allClaims);
 
-		//* 5. Save final results to JSON
-		await Bun.write(
-			claimsResultsFilePath,
-			JSON.stringify(claimResultsData, null, 2),
-		);
-		console.log(
-			`\n✅ Saved ${claimResultsData.length} claim results to ${claimsResultsFilePath}`,
-		);
-
-		//* 5b. Save final results to database
+		//* 5. Save final results to database
 		console.log("\n💾 Saving claim results to database...");
 		let savedResultsCount = 0;
 		let failedResultsCount = 0;
@@ -167,7 +131,6 @@ export async function runPipeline(
 				.set({
 					status: "completed",
 					claimsProcessed: claimResultsData.length.toString(),
-					resultsPath: claimsResultsFilePath,
 					updatedAt: new Date(),
 				})
 				.where(eq(pipelineJobs.id, jobId));
@@ -175,7 +138,6 @@ export async function runPipeline(
 
 		return {
 			claimsProcessed: claimResultsData.length,
-			resultsPath: claimsResultsFilePath,
 		};
 	} catch (error) {
 		// Update job status to failed if jobId provided

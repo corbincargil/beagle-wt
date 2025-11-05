@@ -1,8 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { ClaimRecord } from "../../../packages/shared/types/claims";
+import db, { claims, untransformClaim } from "@beagle-wt/shared-db";
 
-const CLAIMS_RECORDS_FILE_PATH =
-	process.env.CLAIMS_RECORDS_FILE_PATH || "./data/claims-records.json";
 const CLAUDE_API_KEY = process.env.ANTHROPIC_API_KEY;
 
 if (!CLAUDE_API_KEY) {
@@ -31,31 +29,19 @@ async function deleteClaudeFile(fileId: string): Promise<boolean> {
 }
 
 /**
- * Deletes all Claude files from claims-records.json
+ * Deletes all Claude files from database claims
  */
 async function cleanupClaudeFiles(): Promise<void> {
 	console.log("🗑️  Starting cleanup of Claude files...");
-	console.log(`Reading from: ${CLAIMS_RECORDS_FILE_PATH}\n`);
+	console.log("Reading from database...\n");
 
-	// Read claims from JSON file
-	const fileContent = await Bun.file(CLAIMS_RECORDS_FILE_PATH).text();
+	// Read claims from database
+	const claimsRows = await db.select().from(claims);
+	const claimsList = claimsRows.map((row) => untransformClaim(row));
 
-	if (!fileContent.trim()) {
-		console.error(
-			`Error: File ${CLAIMS_RECORDS_FILE_PATH} is empty. No files to clean up.`,
-		);
-		process.exit(1);
-	}
-
-	let claims: ClaimRecord[];
-	try {
-		claims = JSON.parse(fileContent) as ClaimRecord[];
-	} catch (error) {
-		console.error(
-			`Error: Failed to parse JSON from ${CLAIMS_RECORDS_FILE_PATH}:`,
-			error instanceof Error ? error.message : error,
-		);
-		process.exit(1);
+	if (claimsList.length === 0) {
+		console.log("No claims found in database. No files to clean up.");
+		return;
 	}
 
 	let totalFiles = 0;
@@ -63,8 +49,8 @@ async function cleanupClaudeFiles(): Promise<void> {
 	let failedFiles = 0;
 
 	// Process each claim
-	for (let i = 0; i < claims.length; i++) {
-		const claim = claims[i];
+	for (let i = 0; i < claimsList.length; i++) {
+		const claim = claimsList[i];
 
 		if (!claim) {
 			console.warn(`⚠ Warning: Claim at index ${i} is missing, skipping`);
@@ -76,7 +62,7 @@ async function cleanupClaudeFiles(): Promise<void> {
 		}
 
 		console.log(
-			`[${i + 1}/${claims.length}] Processing claim ${claim.trackingNumber} (${claim.claudeFiles.length} files)`,
+			`[${i + 1}/${claimsList.length}] Processing claim ${claim.trackingNumber} (${claim.claudeFiles?.length || 0} files)`,
 		);
 
 		// Delete each file in the claim's claudeFiles array

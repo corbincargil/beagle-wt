@@ -1,23 +1,23 @@
-import db, { claims, transformClaim } from "@beagle-wt/shared-db";
-import { eq } from "drizzle-orm";
-import type { ClaimRecord } from "../../../../packages/shared/types/claims";
+import db, {
+	claims,
+	transformClaim,
+	untransformClaim,
+} from "@beagle-wt/shared-db";
+import { count, eq } from "drizzle-orm";
 import { uploadMultipleClaimsDocuments } from "../claude/uploads";
-
-const CLAIMS_RECORDS_FILE_PATH =
-	process.env.CLAIMS_RECORDS_FILE_PATH || "./data/claims-records.json";
 
 /**
  * Processes claims in batches by uploading documents to Claude API
- * Reads from JSON file, processes batches, and writes back after each batch
+ * Reads from database, processes batches incrementally, and updates database
  * @param batchSize - Number of claims to process per batch
  * @returns Promise that resolves when all batches are processed
  */
 export async function batchUploadDocuments(batchSize: number): Promise<void> {
-	// Read file to get total claims count
-	const allClaims = JSON.parse(
-		await Bun.file(CLAIMS_RECORDS_FILE_PATH).text(),
-	) as ClaimRecord[];
-	const totalClaims = allClaims.length;
+	// Get total claims count from database
+	const [{ count: totalClaimsValue } = { count: 0 }] = await db
+		.select({ count: count() })
+		.from(claims);
+	const totalClaims = Number(totalClaimsValue);
 	const totalBatches = Math.ceil(totalClaims / batchSize);
 
 	for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
@@ -28,11 +28,13 @@ export async function batchUploadDocuments(batchSize: number): Promise<void> {
 			`\n📦 Processing batch ${batchIndex + 1}/${totalBatches} (claims ${startIndex + 1}-${endIndex})`,
 		);
 
-		// Read file once per batch to get latest state
-		const currentClaims = JSON.parse(
-			await Bun.file(CLAIMS_RECORDS_FILE_PATH).text(),
-		) as ClaimRecord[];
-		const batchClaims = currentClaims.slice(startIndex, endIndex);
+		// Query claims from database for this batch
+		const batchRows = await db
+			.select()
+			.from(claims)
+			.limit(batchSize)
+			.offset(startIndex);
+		const batchClaims = batchRows.map((row) => untransformClaim(row));
 
 		// Filter out claims that already have claudeFiles (already processed)
 		const unprocessedClaims = batchClaims.filter(
@@ -57,31 +59,6 @@ export async function batchUploadDocuments(batchSize: number): Promise<void> {
 		// Process only unprocessed claims
 		const processedClaims =
 			await uploadMultipleClaimsDocuments(unprocessedClaims);
-
-		// Merge processed claims back with already-processed claims
-		const allProcessedClaims = batchClaims.map((claim) => {
-			const processed = processedClaims.find(
-				(pc) => pc.trackingNumber === claim.trackingNumber,
-			);
-			return processed || claim;
-		});
-
-		// Update the full array with processed results
-		allProcessedClaims.forEach((processedClaim, i) => {
-			const claimIndex = startIndex + i;
-			if (claimIndex < currentClaims.length) {
-				currentClaims[claimIndex] = processedClaim;
-			}
-		});
-
-		// Write back to file once per batch
-		await Bun.write(
-			CLAIMS_RECORDS_FILE_PATH,
-			JSON.stringify(currentClaims, null, 2),
-		);
-		console.log(
-			`✓ Saved batch ${batchIndex + 1}/${totalBatches} to ${CLAIMS_RECORDS_FILE_PATH}`,
-		);
 
 		// Update database records with claudeFiles after successful upload
 		// Only update claims that were actually processed (have new claudeFiles)

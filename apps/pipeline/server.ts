@@ -76,8 +76,6 @@ serve({
 					csvContent: body.csv,
 					batchSize: batchSize || 50,
 					jobId: job.id,
-					sanitizedClaimsFilePath: `./data/jobs/${job.id}/claims-records.json`,
-					claimsResultsFilePath: `./data/jobs/${job.id}/claim-results.json`,
 				}).catch((error) => {
 					console.error(`Error processing job ${job.id}:`, error);
 					// Error handling is done in runPipeline function
