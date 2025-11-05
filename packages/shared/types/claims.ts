@@ -40,6 +40,7 @@ interface ChargeItem {
 }
 
 export interface ClaimRecord {
+	id: string;
 	trackingNumber: string;
 	claimDate?: string;
 	propertyAddress?: string;
@@ -58,6 +59,7 @@ export interface ClaimRecord {
 }
 
 export interface ClaimResult {
+	id: string;
 	trackingNumber: string;
 	tenantName: string;
 	status: "approved" | "declined";
