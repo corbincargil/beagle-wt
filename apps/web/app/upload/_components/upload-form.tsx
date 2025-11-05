@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { pipelineApi, type UploadPipelineJobResponse } from "@/lib/api/client";
 
 export default function UploadForm() {
+	const queryClient = useQueryClient();
 	const [file, setFile] = useState<File | null>(null);
 	const [batchSize, setBatchSize] = useState<string>("50");
 	const [isLoading, setIsLoading] = useState(false);
@@ -81,6 +83,8 @@ export default function UploadForm() {
 			if (fileInput) {
 				fileInput.value = "";
 			}
+			// Invalidate and refetch pipeline jobs list
+			queryClient.invalidateQueries({ queryKey: ["pipeline-jobs"] });
 		} catch (err) {
 			setError(
 				err instanceof Error
@@ -93,7 +97,7 @@ export default function UploadForm() {
 	};
 
 	return (
-		<div className="flex flex-col w-full max-w-2xl mx-auto">
+		<div className="flex flex-col w-full mx-auto">
 			<h1 className="text-4xl font-bold mb-6">Upload CSV File</h1>
 
 			<form onSubmit={handleSubmit} className="space-y-6">

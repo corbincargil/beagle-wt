@@ -47,6 +47,30 @@ export const claimsApi = {
 };
 
 /**
+ * Pipeline job type from database
+ */
+export interface PipelineJob {
+	id: string;
+	status: "pending" | "processing" | "completed" | "failed";
+	csvContent: string;
+	batchSize: string | null;
+	claimsProcessed: string | null;
+	errorMessage: string | null;
+	resultsPath: string | null;
+	createdAt: Date | string;
+	updatedAt: Date | string;
+}
+
+/**
+ * API client for pipeline-related endpoints
+ */
+export const pipelineJobsApi = {
+	getPipelineJobs: async (): Promise<PipelineJob[]> => {
+		return apiFetch<PipelineJob[]>("/api/pipeline/jobs");
+	},
+};
+
+/**
  * Pipeline API client for uploading CSV files and processing jobs
  */
 export interface UploadPipelineJobResponse {
