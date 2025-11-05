@@ -5,13 +5,13 @@ This MVP demonstrates a pipeline that bulk-processes Security Deposit Insurance 
 ## Pipeline Overview
 
 1. Takes a claims CSV as input and sanitizes the data
-2. Saves the clean data to `data/claims-records.json`
+2. Saves the clean data to `data/claims-records.json` and to the PostgreSQL database
 3. Uploads documents to Claude API in batches
 4. Processes claims through two-phase analysis:
    - Phase 1: Classifies documents, verifies required documents, checks first month's rent and SDI premium payment
    - Phase 2: Analyzes charge line items, classifies as covered/excluded, calculates eligible totals
 5. Applies SDI policy logic to determine claim status and final payout
-6. Saves final results to `data/claim-results.json`
+6. Saves final results to `data/claim-results.json` and to the PostgreSQL database
 
 ## Installation
 
@@ -36,6 +36,7 @@ bun run cleanup-claude-files
 ### Environment Variables
 
 - `ANTHROPIC_API_KEY` - Anthropic API key
+- `DATABASE_URL` - PostgreSQL database connection string (required for database persistence)
 - `RAW_CLAIMS_FILE_PATH` - Path to input CSV (default: `./data/raw-claims-data.csv`)
 - `SANITIZED_CLAIMS_FILE_PATH` - Path for sanitized JSON output (default: `./data/claims-records.json`)
 - `CLAIMS_RESULTS_FILE_PATH` - Path for final results JSON (default: `./data/claim-results.json`)
@@ -134,12 +135,13 @@ data/documents/
 - **Runtime**: Bun v1.2.9
 - **Language**: TypeScript
 - **AI API**: Anthropic (Claude)
+- **Database**: PostgreSQL (via Drizzle ORM)
 - **Data Processing**: CSV parsing, JSON serialization
 - **Validation**: Zod schemas
 
 ## Potential Improvements for v1
 
-- Replace JSON file storage with a database (PostgreSQL, MongoDB)
+- ~~Replace JSON file storage with a database (PostgreSQL, MongoDB)~~ ✅ Completed
 - Use S3 for document storage instead of local filesystem
 - Process claims via streaming instead of loading everything into memory
 - Implement a worker queue (Bull, BullMQ, AWS SQS) for async processing

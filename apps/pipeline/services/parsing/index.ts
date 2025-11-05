@@ -18,12 +18,12 @@ import {
  */
 const parseClaimsWithoutDocuments = (
 	rows: string[][],
-): Omit<ClaimRecord, "documents" | "claudeFiles">[] => {
+): Omit<ClaimRecord, "id" | "documents" | "claudeFiles">[] => {
 	// Skip header row (first row)
 	const dataRows = rows.slice(1);
 
 	return dataRows.map(
-		(row: string[]): Omit<ClaimRecord, "documents" | "claudeFiles"> => {
+		(row: string[]): Omit<ClaimRecord, "id" | "documents" | "claudeFiles"> => {
 			return {
 				trackingNumber: row[0] || "",
 				claimDate: row[1] || undefined,
@@ -84,8 +84,8 @@ const loadDocumentsForClaim = async (
  * Processes claims in parallel for better performance
  */
 const attachDocuments = async (
-	claims: Omit<ClaimRecord, "documents" | "claudeFiles">[],
-): Promise<ClaimRecord[]> => {
+	claims: Omit<ClaimRecord, "documents" | "claudeFiles" | "id">[],
+): Promise<Omit<ClaimRecord, "id">[]> => {
 	// Process all claims in parallel
 	const claimsWithDocuments = await Promise.all(
 		claims.map(async (claim) => {
@@ -104,7 +104,9 @@ const attachDocuments = async (
  * @param filePath - The path to the CSV file
  * @returns An array of ClaimRecord objects
  */
-const extractClaimData = async (filePath: string): Promise<ClaimRecord[]> => {
+const extractClaimData = async (
+	filePath: string,
+): Promise<Omit<ClaimRecord, "id">[]> => {
 	const file = Bun.file(filePath);
 	const contents = await file.text();
 	const rows = parse(contents, {
@@ -113,7 +115,7 @@ const extractClaimData = async (filePath: string): Promise<ClaimRecord[]> => {
 	});
 
 	// todo: remove after testing
-	const first5Rows = rows.slice(0, 5);
+	const first5Rows = rows.slice(5, 8);
 
 	// sanitize the rows (string[][] to ClaimRecord[])
 	const claimsWithoutDocuments = parseClaimsWithoutDocuments(first5Rows);

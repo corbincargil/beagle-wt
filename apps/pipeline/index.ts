@@ -1,3 +1,9 @@
+import db, {
+	claimResults,
+	claims,
+	transformClaim,
+	transformClaimResult,
+} from "@beagle-wt/shared-db";
 import type { ClaimRecord } from "../../packages/shared/types/claims";
 import { extractClaimData } from "./services/parsing";
 import { processAllClaims } from "./services/processing";
@@ -23,6 +29,38 @@ console.log(
 	`Saved ${claimsRecords.length} sanitized claims to ${SANITIZED_CLAIMS_FILE_PATH}`,
 );
 
+//* 2b. Save sanitized claims to database
+console.log("\n💾 Saving claims to database...");
+let savedClaimsCount = 0;
+let failedClaimsCount = 0;
+
+for (const claim of claimsRecords) {
+	try {
+		const transformed = transformClaim(claim);
+		await db
+			.insert(claims)
+			.values(transformed)
+			.onConflictDoUpdate({
+				target: claims.trackingNumber,
+				set: {
+					...transformed,
+					updatedAt: new Date(),
+				},
+			});
+		savedClaimsCount++;
+	} catch (error) {
+		console.error(
+			`✗ Error saving claim ${claim.trackingNumber} to database:`,
+			error,
+		);
+		failedClaimsCount++;
+	}
+}
+
+console.log(
+	`✅ Saved ${savedClaimsCount} claims to database${failedClaimsCount > 0 ? ` (${failedClaimsCount} failed)` : ""}`,
+);
+
 //* 3. Upload documents to Claude API in batches
 await batchUploadDocuments(CLAIMS_BATCH_SIZE);
 
@@ -31,13 +69,45 @@ console.log("\n🔍 Starting claim analysis...");
 const allClaims = JSON.parse(
 	await Bun.file(SANITIZED_CLAIMS_FILE_PATH).text(),
 ) as ClaimRecord[];
-const claimResults = await processAllClaims(allClaims);
+const claimResultsData = await processAllClaims(allClaims);
 
-//* 5. Save final results
+//* 5. Save final results to JSON
 await Bun.write(
 	CLAIMS_RESULTS_FILE_PATH,
-	JSON.stringify(claimResults, null, 2),
+	JSON.stringify(claimResultsData, null, 2),
 );
 console.log(
-	`\n✅ Saved ${claimResults.length} claim results to ${CLAIMS_RESULTS_FILE_PATH}`,
+	`\n✅ Saved ${claimResultsData.length} claim results to ${CLAIMS_RESULTS_FILE_PATH}`,
+);
+
+//* 5b. Save final results to database
+console.log("\n💾 Saving claim results to database...");
+let savedResultsCount = 0;
+let failedResultsCount = 0;
+
+for (const result of claimResultsData) {
+	try {
+		const transformed = transformClaimResult(result);
+		await db
+			.insert(claimResults)
+			.values(transformed)
+			.onConflictDoUpdate({
+				target: claimResults.trackingNumber,
+				set: {
+					...transformed,
+					updatedAt: new Date(),
+				},
+			});
+		savedResultsCount++;
+	} catch (error) {
+		console.error(
+			`✗ Error saving claim result ${result.trackingNumber} to database:`,
+			error,
+		);
+		failedResultsCount++;
+	}
+}
+
+console.log(
+	`✅ Saved ${savedResultsCount} claim results to database${failedResultsCount > 0 ? ` (${failedResultsCount} failed)` : ""}`,
 );

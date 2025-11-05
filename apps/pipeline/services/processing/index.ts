@@ -14,7 +14,7 @@ import { ClaimResultSchema, InitialClaimResultSchema } from "./validation";
  */
 export async function processClaimInitial(
 	claim: ClaimRecord,
-): Promise<ClaimResult> {
+): Promise<Omit<ClaimResult, "id">> {
 	console.log(`Processing Phase 1 for claim ${claim.trackingNumber}...`);
 
 	// Phase 1: Get initial analysis from Claude
@@ -37,7 +37,7 @@ export async function processClaimInitial(
 export async function processClaimCharges(
 	claim: ClaimRecord,
 	initialResult: ClaimResult,
-): Promise<ClaimResult> {
+): Promise<Omit<ClaimResult, "id">> {
 	console.log(
 		`Processing Phase 2 (charges analysis) for claim ${claim.trackingNumber}...`,
 	);
@@ -61,8 +61,8 @@ export async function processClaimCharges(
  */
 export async function processAllClaims(
 	claims: ClaimRecord[],
-): Promise<ClaimResult[]> {
-	const results: ClaimResult[] = [];
+): Promise<Omit<ClaimResult, "id">[]> {
+	const results: Omit<ClaimResult, "id">[] = [];
 
 	for (let i = 0; i < claims.length; i++) {
 		const claim = claims[i];
