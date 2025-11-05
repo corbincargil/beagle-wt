@@ -7,6 +7,7 @@
 	"module": "index.ts",
 	"type": "module",
 	"private": true,
+	"packageManager": "bun@1.2.9",
 	"scripts": {
 		"dev": "turbo dev",
 		"lint": "biome check --no-errors-on-unmatched",
