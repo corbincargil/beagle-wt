@@ -83,6 +83,21 @@ export const claimResults = pgTable("claim_results", {
 	updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const pipelineJobs = pgTable("pipeline_jobs", {
+	id: uuid("id").defaultRandom().primaryKey(),
+	status: text("status")
+		.$type<"pending" | "processing" | "completed" | "failed">()
+		.notNull()
+		.default("pending"),
+	csvContent: text("csv_content").notNull(),
+	batchSize: numeric("batch_size"),
+	claimsProcessed: numeric("claims_processed"),
+	errorMessage: text("error_message"),
+	resultsPath: text("results_path"),
+	createdAt: timestamp("created_at").defaultNow().notNull(),
+	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const claimsRelations = relations(claims, ({ one }) => ({
 	claimResult: one(claimResults, {
 		fields: [claims.trackingNumber],
