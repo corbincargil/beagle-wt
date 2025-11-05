@@ -30,7 +30,7 @@ interface RunPipelineResult {
 export async function runPipeline(
 	options: RunPipelineOptions,
 ): Promise<RunPipelineResult> {
-	const { csvContent, rowLimit = 5, batchSize = 10, jobId } = options;
+	const { csvContent, rowLimit = 2, batchSize = 10, jobId } = options;
 
 	// Update job status to processing if jobId provided
 	if (jobId) {
@@ -90,14 +90,14 @@ export async function runPipeline(
 		// Fetch all claims from database
 		const allClaimsRows = await db.select().from(claims);
 		const allClaims = allClaimsRows.map((row) => untransformClaim(row));
-		const claimResultsData = await processAllClaims(allClaims);
 
-		//* 5. Save final results to database
-		console.log("\n💾 Saving claim results to database...");
+		// Track saved/failed counts for incremental saving
 		let savedResultsCount = 0;
 		let failedResultsCount = 0;
 
-		for (const result of claimResultsData) {
+		// Process claims with incremental saving callback
+		await processAllClaims(allClaims, async (result) => {
+			// Save each result immediately to database
 			try {
 				const transformed = transformClaimResult(result);
 				await db
@@ -111,17 +111,32 @@ export async function runPipeline(
 						},
 					});
 				savedResultsCount++;
+				console.log(
+					`💾 Saved result for claim ${result.trackingNumber} to database`,
+				);
+
+				// Update job status with current progress if jobId provided
+				if (jobId) {
+					await db
+						.update(pipelineJobs)
+						.set({
+							claimsProcessed: savedResultsCount.toString(),
+							updatedAt: new Date(),
+						})
+						.where(eq(pipelineJobs.id, jobId));
+				}
 			} catch (error) {
+				failedResultsCount++;
 				console.error(
 					`✗ Error saving claim result ${result.trackingNumber} to database:`,
 					error,
 				);
-				failedResultsCount++;
+				// Continue processing even if save fails
 			}
-		}
+		});
 
 		console.log(
-			`✅ Saved ${savedResultsCount} claim results to database${failedResultsCount > 0 ? ` (${failedResultsCount} failed)` : ""}`,
+			`\n✅ Processing complete: ${savedResultsCount} claim results saved to database${failedResultsCount > 0 ? ` (${failedResultsCount} failed)` : ""}`,
 		);
 
 		// Update job status to completed if jobId provided
@@ -130,14 +145,14 @@ export async function runPipeline(
 				.update(pipelineJobs)
 				.set({
 					status: "completed",
-					claimsProcessed: claimResultsData.length.toString(),
+					claimsProcessed: savedResultsCount.toString(),
 					updatedAt: new Date(),
 				})
 				.where(eq(pipelineJobs.id, jobId));
 		}
 
 		return {
-			claimsProcessed: claimResultsData.length,
+			claimsProcessed: savedResultsCount,
 		};
 	} catch (error) {
 		// Update job status to failed if jobId provided

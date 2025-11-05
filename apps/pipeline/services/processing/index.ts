@@ -57,10 +57,12 @@ export async function processClaimCharges(
  * Phase 1: Initial analysis and validation
  * Phase 2: Charges analysis (only for valid claims)
  * @param claims - Array of claim records with uploaded Claude files
+ * @param onResultProcessed - Optional callback to be called immediately after each claim is processed
  * @returns Array of complete ClaimResult objects
  */
 export async function processAllClaims(
 	claims: ClaimRecord[],
+	onResultProcessed?: (result: Omit<ClaimResult, "id">) => Promise<void>,
 ): Promise<Omit<ClaimResult, "id">[]> {
 	const results: Omit<ClaimResult, "id">[] = [];
 
@@ -84,6 +86,20 @@ export async function processAllClaims(
 			// const finalResult = await processClaimCharges(claim, initialResult);
 
 			results.push(initialResult);
+
+			// Call the callback immediately if provided (for incremental saving)
+			if (onResultProcessed) {
+				try {
+					await onResultProcessed(initialResult);
+				} catch (error) {
+					console.error(
+						`✗ Error in onResultProcessed callback for claim ${claim.trackingNumber}:`,
+						error,
+					);
+					// Continue processing even if callback fails
+				}
+			}
+
 			console.log(`✓ Completed processing claim ${claim.trackingNumber}\n`);
 		} catch (error) {
 			console.error(`✗ Error processing claim ${claim.trackingNumber}:`, error);
