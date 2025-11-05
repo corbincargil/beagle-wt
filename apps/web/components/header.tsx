@@ -35,8 +35,8 @@ export const Header = ({ maxWidth }: { maxWidth: string }) => {
 					<Link href="/" className={linkClass("/")}>
 						Home
 					</Link>
-					<Link href="/quotes" className={linkClass("/quotes")}>
-						Quotes
+					<Link href="/claims" className={linkClass("/claims")}>
+						Claims
 					</Link>
 				</div>
 			</div>
