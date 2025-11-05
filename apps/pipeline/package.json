@@ -4,7 +4,9 @@
 	"type": "module",
 	"private": true,
 	"scripts": {
-		"cleanup-claude-files": "bun scripts/cleanup-claude-files.ts"
+		"cleanup-claude-files": "bun scripts/cleanup-claude-files.ts",
+		"server": "bun server.ts",
+		"dev:server": "bun --watch server.ts"
 	},
 	"devDependencies": {
 		"@types/bun": "latest"

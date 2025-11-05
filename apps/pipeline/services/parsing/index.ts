@@ -100,25 +100,25 @@ const attachDocuments = async (
 };
 
 /**
- * Extracts the raw claim data from a CSV file and returns an array of ClaimRecord objects
- * @param filePath - The path to the CSV file
+ * Parses CSV content string into ClaimRecord objects
+ * @param csvContent - The CSV content as a string
+ * @param limitRows - Optional limit on number of rows to process (for testing)
  * @returns An array of ClaimRecord objects
  */
-const extractClaimData = async (
-	filePath: string,
+const extractClaimDataFromString = async (
+	csvContent: string,
+	limitRows?: number,
 ): Promise<Omit<ClaimRecord, "id">[]> => {
-	const file = Bun.file(filePath);
-	const contents = await file.text();
-	const rows = parse(contents, {
+	const rows = parse(csvContent, {
 		delimiter: ",",
 		skip_empty_lines: true,
 	});
 
-	// todo: remove after testing
-	const first5Rows = rows.slice(5, 8);
+	// Apply limit if specified (for testing purposes)
+	const rowsToProcess = limitRows ? rows.slice(0, limitRows + 1) : rows;
 
 	// sanitize the rows (string[][] to ClaimRecord[])
-	const claimsWithoutDocuments = parseClaimsWithoutDocuments(first5Rows);
+	const claimsWithoutDocuments = parseClaimsWithoutDocuments(rowsToProcess);
 
 	// add documents to each claim record
 	const claimsRecords = await attachDocuments(claimsWithoutDocuments);
@@ -126,4 +126,19 @@ const extractClaimData = async (
 	return claimsRecords;
 };
 
-export { extractClaimData };
+/**
+ * Extracts the raw claim data from a CSV file and returns an array of ClaimRecord objects
+ * @param filePath - The path to the CSV file
+ * @param limitRows - Optional limit on number of rows to process (for testing)
+ * @returns An array of ClaimRecord objects
+ */
+const extractClaimData = async (
+	filePath: string,
+	limitRows?: number,
+): Promise<Omit<ClaimRecord, "id">[]> => {
+	const file = Bun.file(filePath);
+	const contents = await file.text();
+	return extractClaimDataFromString(contents, limitRows);
+};
+
+export { extractClaimData, extractClaimDataFromString };

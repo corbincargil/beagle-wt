@@ -38,9 +38,25 @@ async function cleanupClaudeFiles(): Promise<void> {
 	console.log(`Reading from: ${CLAIMS_RECORDS_FILE_PATH}\n`);
 
 	// Read claims from JSON file
-	const claims = JSON.parse(
-		await Bun.file(CLAIMS_RECORDS_FILE_PATH).text(),
-	) as ClaimRecord[];
+	const fileContent = await Bun.file(CLAIMS_RECORDS_FILE_PATH).text();
+
+	if (!fileContent.trim()) {
+		console.error(
+			`Error: File ${CLAIMS_RECORDS_FILE_PATH} is empty. No files to clean up.`,
+		);
+		process.exit(1);
+	}
+
+	let claims: ClaimRecord[];
+	try {
+		claims = JSON.parse(fileContent) as ClaimRecord[];
+	} catch (error) {
+		console.error(
+			`Error: Failed to parse JSON from ${CLAIMS_RECORDS_FILE_PATH}:`,
+			error instanceof Error ? error.message : error,
+		);
+		process.exit(1);
+	}
 
 	let totalFiles = 0;
 	let deletedFiles = 0;

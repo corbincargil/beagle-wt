@@ -1,3 +1,5 @@
+import db, { claims, transformClaim } from "@beagle-wt/shared-db";
+import { eq } from "drizzle-orm";
 import type { ClaimRecord } from "../../../../packages/shared/types/claims";
 import { uploadMultipleClaimsDocuments } from "../claude/uploads";
 
@@ -32,11 +34,40 @@ export async function batchUploadDocuments(batchSize: number): Promise<void> {
 		) as ClaimRecord[];
 		const batchClaims = currentClaims.slice(startIndex, endIndex);
 
-		// Process batch using uploadMultipleClaimsDocuments
-		const processedClaims = await uploadMultipleClaimsDocuments(batchClaims);
+		// Filter out claims that already have claudeFiles (already processed)
+		const unprocessedClaims = batchClaims.filter(
+			(claim) => !claim.claudeFiles || claim.claudeFiles.length === 0,
+		);
+		const skippedCount = batchClaims.length - unprocessedClaims.length;
+
+		if (skippedCount > 0) {
+			console.log(
+				`⏭️  Skipping ${skippedCount} claim(s) that already have claudeFiles`,
+			);
+		}
+
+		// If all claims in batch are already processed, skip to next batch
+		if (unprocessedClaims.length === 0) {
+			console.log(
+				`✓ Batch ${batchIndex + 1}/${totalBatches} already processed, skipping...`,
+			);
+			continue;
+		}
+
+		// Process only unprocessed claims
+		const processedClaims =
+			await uploadMultipleClaimsDocuments(unprocessedClaims);
+
+		// Merge processed claims back with already-processed claims
+		const allProcessedClaims = batchClaims.map((claim) => {
+			const processed = processedClaims.find(
+				(pc) => pc.trackingNumber === claim.trackingNumber,
+			);
+			return processed || claim;
+		});
 
 		// Update the full array with processed results
-		processedClaims.forEach((processedClaim, i) => {
+		allProcessedClaims.forEach((processedClaim, i) => {
 			const claimIndex = startIndex + i;
 			if (claimIndex < currentClaims.length) {
 				currentClaims[claimIndex] = processedClaim;
@@ -51,5 +82,39 @@ export async function batchUploadDocuments(batchSize: number): Promise<void> {
 		console.log(
 			`✓ Saved batch ${batchIndex + 1}/${totalBatches} to ${CLAIMS_RECORDS_FILE_PATH}`,
 		);
+
+		// Update database records with claudeFiles after successful upload
+		// Only update claims that were actually processed (have new claudeFiles)
+		if (processedClaims.length > 0) {
+			console.log(
+				`💾 Updating database records for batch ${batchIndex + 1}/${totalBatches}...`,
+			);
+			let updatedDbCount = 0;
+			let failedDbCount = 0;
+
+			for (const processedClaim of processedClaims) {
+				try {
+					const transformed = transformClaim(processedClaim);
+					await db
+						.update(claims)
+						.set({
+							claudeFiles: transformed.claudeFiles,
+							updatedAt: new Date(),
+						})
+						.where(eq(claims.trackingNumber, processedClaim.trackingNumber));
+					updatedDbCount++;
+				} catch (error) {
+					console.error(
+						`✗ Error updating claim ${processedClaim.trackingNumber} in database:`,
+						error,
+					);
+					failedDbCount++;
+				}
+			}
+
+			console.log(
+				`✅ Updated ${updatedDbCount} claims in database${failedDbCount > 0 ? ` (${failedDbCount} failed)` : ""}`,
+			);
+		}
 	}
 }
