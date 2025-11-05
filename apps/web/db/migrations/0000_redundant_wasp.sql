@@ -1,0 +1,21 @@
+CREATE TABLE "claims" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"tracking_number" text NOT NULL,
+	"claim_date" timestamp,
+	"property_address" text,
+	"lease_start_date" timestamp,
+	"lease_end_date" timestamp,
+	"move_out_date" timestamp,
+	"monthly_rent" numeric,
+	"property_management_company" text,
+	"group_number" text,
+	"treaty_number" text,
+	"policy" text,
+	"max_benefit" numeric,
+	"status" text,
+	"documents" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"claude_files" jsonb,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "claims_tracking_number_unique" UNIQUE("tracking_number")
+);

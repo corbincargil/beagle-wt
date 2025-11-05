@@ -1,149 +1,74 @@
 # beagle-wt
 
-This MVP demonstrates a pipeline that bulk-processes Security Deposit Insurance (SDI) claims using the provided SDI Policy Guidelines via the Anthropic API. The system automates the evaluation of claims by parsing claim documents, classifying line items according to Beagle's SDI policy, and applying deterministic rules to calculate payout amounts.
+An AI-driven system for automating the evaluation of Security Deposit Insurance (SDI) claims. The system processes claim documents, classifies charges according to Beagle's SDI policy, and calculates payout amounts using deterministic rules.
 
-## Pipeline Overview
+## Overview
 
-1. Takes a claims CSV as input and sanitizes the data
-2. Saves the clean data to `data/claims-records.json`
-3. Uploads documents to Claude API in batches
-4. Processes claims through two-phase analysis:
-   - Phase 1: Classifies documents, verifies required documents, checks first month's rent and SDI premium payment
-   - Phase 2: Analyzes charge line items, classifies as covered/excluded, calculates eligible totals
-5. Applies SDI policy logic to determine claim status and final payout
-6. Saves final results to `data/claim-results.json`
+This monorepo contains:
+- **Pipeline** (`apps/pipeline`): Processes CSV claim records and tenant documents, extracts text from PDFs, uses AI models (Anthropic/Mistral) to classify charges, and applies SDI policy logic to compute payouts
+- **Web** (`apps/web`): Next.js application for viewing and managing claim results
+- **Shared Packages** (`packages/shared`): Shared database schemas, types, and utilities
 
-## Installation
+## Potential Improvements for v1
+
+- Use LangChain for improved AI auditability (prompt versioning, reasoning traceability, accuracy tracking)
+- Centralize prompt management in a versioned system (LangSmith, PromptLayer)
+- Use S3 for document storage instead of local filesystem
+- Process claims via streaming instead of loading everything into memory
+- Support resuming from checkpoints if processing is interrupted
+- Split document handling into its own microservice
+
+## Tech Stack
+
+- **Runtime**: Bun v1.2.9
+- **AI APIs**: Anthropic (Claude)
+- **Frontend**: Next.js 16, React 19, Tailwind CSS
+- **Database**: PostgreSQL with Drizzle ORM
+- **Language**: TypeScript
+
+## Getting Started
+
+### Installation
 
 ```bash
 bun install
 ```
 
-## Usage
-
-Run the pipeline with:
+### Running the Pipeline
 
 ```bash
-bun run index.ts
+cd apps/pipeline
+bun run server
 ```
 
-Clean up (delete) the Claude files with:
+### Running the Web App
 
 ```bash
-bun run cleanup-claude-files
+cd apps/web
+bun run dev
 ```
 
-### Environment Variables
+### Development
 
-- `ANTHROPIC_API_KEY` - Anthropic API key
-- `RAW_CLAIMS_FILE_PATH` - Path to input CSV (default: `./data/raw-claims-data.csv`)
-- `SANITIZED_CLAIMS_FILE_PATH` - Path for sanitized JSON output (default: `./data/claims-records.json`)
-- `CLAIMS_RESULTS_FILE_PATH` - Path for final results JSON (default: `./data/claim-results.json`)
+Run all apps in development mode:
 
-### Configuration
-
-Set `CLAIMS_BATCH_SIZE` in `index.ts` to control document upload batching (default: 50 claims per batch).
-
-## Data Structure
-
-### Sanitized Claims Records
-
-After parsing and sanitization, claims are stored as structured JSON:
-
-```json
-{
-  "trackingNumber": "1",
-  "claimDate": "03/04/22",
-  "propertyAddress": "305 Coosawatchie St, Summerville, SC, 29485-6804",
-  "leaseStartDate": "12/24/21",
-  "moveOutDate": "03/01/22",
-  "propertyManagementCompany": "New Heights Property Management",
-  "groupNumber": "GR0001",
-  "treatyNumber": "T00001",
-  "policy": "613R",
-  "maxBenefit": 2500,
-  "status": "posted",
-  "documents": [
-    {
-      "name": "305 Coosawatchie St move out calculation - hall.pdf",
-      "path": "data/documents/1/305 Coosawatchie St move out calculation - hall.pdf"
-    }
-  ],
-  "claudeFiles": [
-    {
-      "type": "file",
-      "id": "file_011CUp4u3htj8UstzAfy8car",
-      "size_bytes": 7895,
-      "created_at": "2025-11-05T03:55:23.370000Z",
-      "filename": "305 Coosawatchie St move out calculation - hall.pdf",
-      "mime_type": "application/pdf",
-      "downloadable": false
-    }
-  ]
-}
+```bash
+bun run dev
 ```
 
-### Output: Claim Results
-
-Final results include AI analysis, charge classifications, and payout calculations:
-
-```json
-{
-  "trackingNumber": "1",
-  "tenantName": "Brittani Elizabeth Hall and Joshua Justin Hall",
-  "status": "declined",
-  "maxBenefit": 2500,
-  "monthlyRent": 0,
-  "isFirstMonthPaid": false,
-  "firstMonthPaidEvidence": "The tenant ledger shows unpaid rent charges starting from 12/16/2021...",
-  "isFirstMonthSDIPremiumPaid": false,
-  "firstMonthSDIPremiumPaidEvidence": "The tenant ledger shows 'SDRP Monthly Premium' charges...",
-  "missingRequiredDocuments": ["lease_addendum", "lease_agreement"],
-  "submittedDocuments": [
-    {
-      "types": ["notification_to_tenant", "tenant_ledger"],
-      "name": "Move Out Calculation",
-      "path": "Document 1"
-    }
-  ],
-  "approvedCharges": [],
-  "approvedChargesTotal": 0,
-  "excludedCharges": [],
-  "finalPayout": 0,
-  "decisionSummary": "Claim DECLINED. Critical required documents are missing..."
-}
-```
-
-## Document Structure
-
-Claims are organized by tracking number in `data/documents/`:
+## Project Structure
 
 ```
-data/documents/
-├── 1/
-│   └── 305 Coosawatchie St move out calculation - hall.pdf
-├── 2/
-│   ├── 2013 Wishing Well move out calculation.pdf
-│   ├── Walker, Iyanla Docusign_NHPM_Lease_v_2021_(...).pdf
-│   └── Walker, Iyanla DOCUSIGN_-_Security_Deposit_Addendum__(...).pdf
-└── ...
+beagle-wt/
+├── apps/
+│   ├── pipeline/     # Claim processing pipeline
+│   └── web/          # Next.js web application
+└── packages/
+    └── shared/       # Shared database and types
 ```
 
-## Technology Stack
+## Environment Variables
 
-- **Runtime**: Bun v1.2.9
-- **Language**: TypeScript
-- **AI API**: Anthropic (Claude)
-- **Data Processing**: CSV parsing, JSON serialization
-- **Validation**: Zod schemas
-
-## Potential Improvements for v1
-
-- Replace JSON file storage with a database (PostgreSQL, MongoDB)
-- Use S3 for document storage instead of local filesystem
-- Process claims via streaming instead of loading everything into memory
-- Implement a worker queue (Bull, BullMQ, AWS SQS) for async processing
-- Split document handling into its own microservice
-- Use LangChain for improved AI auditability (prompt versioning, reasoning traceability, accuracy tracking)
-- Centralize prompt management in a versioned system (LangSmith, PromptLayer)
-- Support resuming from checkpoints if processing is interrupted
+Make sure to configure your environment variables for:
+- Anthropic API key
+- PostgreSQL connection string

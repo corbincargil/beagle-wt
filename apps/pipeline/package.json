@@ -1,0 +1,28 @@
+{
+	"name": "pipeline",
+	"module": "index.ts",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"cleanup-claude-files": "bun scripts/cleanup-claude-files.ts",
+		"server": "bun server.ts",
+		"dev": "bun --watch server.ts",
+		"dev:server": "bun --watch server.ts"
+	},
+	"devDependencies": {
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"dependencies": {
+		"@anthropic-ai/sdk": "^0.68.0",
+		"@beagle-wt/shared-db": "workspace:*",
+		"csv-parse": "^6.1.0",
+		"drizzle-orm": "^0.44.7",
+		"dotenv": "^17.2.3",
+		"pdf-parse": "^2.4.5",
+		"pg": "^8.16.3",
+		"zod": "^4.1.12"
+	}
+}

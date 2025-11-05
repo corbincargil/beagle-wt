@@ -1,0 +1,22 @@
+CREATE TABLE "claim_results" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"tracking_number" text NOT NULL,
+	"tenant_name" text NOT NULL,
+	"status" text NOT NULL,
+	"max_benefit" numeric NOT NULL,
+	"monthly_rent" numeric NOT NULL,
+	"is_first_month_paid" boolean NOT NULL,
+	"first_month_paid_evidence" text,
+	"is_first_month_sdi_premium_paid" boolean NOT NULL,
+	"first_month_sdi_premium_paid_evidence" text,
+	"missing_required_documents" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"submitted_documents" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"approved_charges" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"approved_charges_total" numeric NOT NULL,
+	"excluded_charges" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"final_payout" numeric NOT NULL,
+	"decision_summary" text NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "claim_results_tracking_number_unique" UNIQUE("tracking_number")
+);
