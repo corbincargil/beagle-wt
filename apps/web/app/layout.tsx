@@ -4,6 +4,7 @@ import "./globals.css";
 import { Footer } from "@/components/footer";
 import { Header } from "@/components/header";
 import { cn } from "@/lib/utils";
+import App from "./index";
 
 const geistSans = Geist({
 	variable: "--font-geist-sans",
@@ -43,7 +44,7 @@ export default function RootLayout({
 							MAX_WIDTH,
 						)}
 					>
-						{children}
+						<App>{children}</App>
 					</main>
 					<Footer maxWidth={MAX_WIDTH} />
 				</div>

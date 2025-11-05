@@ -10,8 +10,10 @@
 		"format": "biome format --write"
 	},
 	"dependencies": {
+		"@tanstack/react-query": "^5.90.6",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
+		"dotenv": "^17.2.3",
 		"drizzle-orm": "^0.44.7",
 		"lucide-react": "^0.552.0",
 		"next": "16.0.1",
