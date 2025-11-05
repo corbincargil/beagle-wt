@@ -1,16 +1,7 @@
-"use client";
-
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ClaimsResultsTable from "./_components/claims-results-table";
 import ClaimsTable from "./_components/claims-table";
 import CombinedClaimsTable from "./_components/combined-claims-table";
-
-const postClaimResult = async () => {
-	const response = await fetch("/api/claims-results", {
-		method: "POST",
-	});
-	return response.json();
-};
 
 export default function ClaimsPage() {
 	return (
@@ -27,9 +18,6 @@ export default function ClaimsPage() {
 				<ClaimsTable />
 			</TabsContent>
 			<TabsContent value="claim-results">
-				<button type="button" onClick={() => postClaimResult()}>
-					Add Claim Result
-				</button>
 				<ClaimsResultsTable />
 			</TabsContent>
 		</Tabs>

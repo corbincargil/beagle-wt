@@ -48,7 +48,7 @@ export default function CombinedClaimsTable() {
 
 	return (
 		<div className="flex flex-col w-full">
-			<h1 className="text-4xl font-bold mb-6">Combined Claims</h1>
+			<h1 className="text-4xl font-bold mb-6">Combined</h1>
 			<Table>
 				<TableHeader>
 					<TableRow>
