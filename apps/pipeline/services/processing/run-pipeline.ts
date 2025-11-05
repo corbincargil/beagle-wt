@@ -30,7 +30,7 @@ interface RunPipelineResult {
 export async function runPipeline(
 	options: RunPipelineOptions,
 ): Promise<RunPipelineResult> {
-	const { csvContent, rowLimit = 2, batchSize = 10, jobId } = options;
+	const { csvContent, rowLimit = 5, batchSize = 10, jobId } = options;
 
 	// Update job status to processing if jobId provided
 	if (jobId) {

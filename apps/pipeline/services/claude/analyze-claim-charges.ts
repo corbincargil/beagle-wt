@@ -23,8 +23,8 @@ const anthropic = new Anthropic();
  */
 export async function analyzeClaimCharges(
 	claim: ClaimRecord,
-	initialResult: ClaimResult,
-): Promise<ClaimResult> {
+	initialResult: Omit<ClaimResult, "id">,
+): Promise<Omit<ClaimResult, "id">> {
 	if (!CLAUDE_API_KEY) {
 		throw new Error("ANTHROPIC_API_KEY environment variable is required");
 	}
@@ -109,7 +109,7 @@ Important:
 
 		const message = await anthropic.beta.messages.create({
 			model: "claude-sonnet-4-5",
-			max_tokens: 1024,
+			max_tokens: 4096,
 			messages: [
 				{
 					role: "user",
@@ -124,6 +124,13 @@ Important:
 			],
 			betas: ["files-api-2025-04-14"],
 		});
+
+		// Check if response was truncated
+		if (message.stop_reason === "max_tokens") {
+			console.warn(
+				`Warning: Claude response for claim ${claim.trackingNumber} was truncated due to max_tokens limit`,
+			);
+		}
 
 		// Extract the text content from the response
 		const responseContent = message.content[0];
@@ -165,7 +172,7 @@ Important:
 		);
 
 		// Merge with initial result
-		const completeResult: ClaimResult = {
+		const completeResult: Omit<ClaimResult, "id"> = {
 			...initialResult,
 			approvedCharges: chargesAnalysis.approvedCharges,
 			approvedChargesTotal,

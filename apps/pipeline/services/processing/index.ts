@@ -36,7 +36,7 @@ export async function processClaimInitial(
  */
 export async function processClaimCharges(
 	claim: ClaimRecord,
-	initialResult: ClaimResult,
+	initialResult: Omit<ClaimResult, "id">,
 ): Promise<Omit<ClaimResult, "id">> {
 	console.log(
 		`Processing Phase 2 (charges analysis) for claim ${claim.trackingNumber}...`,
@@ -83,9 +83,9 @@ export async function processAllClaims(
 
 			// Only proceed to Phase 2 if claim passed initial validation
 			// (You could add additional validation logic here if needed)
-			// const finalResult = await processClaimCharges(claim, initialResult);
+			const finalResult = await processClaimCharges(claim, initialResult);
 
-			results.push(initialResult);
+			results.push(finalResult);
 
 			// Call the callback immediately if provided (for incremental saving)
 			if (onResultProcessed) {
