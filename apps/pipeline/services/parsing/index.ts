@@ -43,6 +43,7 @@ const parseClaimsWithoutDocuments = (
 				policy: row[26] || undefined, // Policy
 				maxBenefit: parseDollarAmount(row[27]), // Max Benefit
 				status: normalizeStatus(row[28]), // Status
+				approvedBenefitAmount: parseDollarAmount(row[30]), // Approved Benefit Amount (ground truth)
 			};
 		},
 	);
