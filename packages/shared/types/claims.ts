@@ -54,6 +54,7 @@ export interface ClaimRecord {
 	policy?: string;
 	maxBenefit?: number;
 	status?: "posted" | "declined";
+	approvedBenefitAmount?: number; // Ground truth from CSV
 	documents: Document[];
 	claudeFiles: ClaudeFile[] | undefined;
 }

@@ -1,6 +1,6 @@
-import db from "@/db";
 import { pipelineJobs } from "@beagle-wt/shared-db/schema";
 import { desc } from "drizzle-orm";
+import db from "@/db";
 
 export async function GET() {
 	const results = await db
