@@ -15,7 +15,7 @@ const anthropic = new Anthropic();
 
 /**
  * Generates initial ClaimResult by analyzing documents and extracting basic information
- * This is Phase 1: Document classification, payment verification, and required document checks
+ * This is Phase 1: Document classification, payment verification, and available information assessment
  * @param claim - The claim record with uploaded Claude files
  * @returns Initial ClaimResult without charges analysis
  */
@@ -41,13 +41,13 @@ export async function analyzeClaimInitial(
 
 1. CLASSIFY DOCUMENTS: For each document, classify its type(s). A document can have multiple types.
 
-2. EXTRACT TENANT NAME: Find and extract the tenant's full name from the documents.
+2. EXTRACT TENANT NAME: Find and extract the tenant's full name from the documents (if available).
 
-3. VERIFY FIRST MONTH RENT PAYMENT: Determine if the first month's rent was paid. Provide clear evidence (quote from document or explanation).
+3. VERIFY FIRST MONTH RENT PAYMENT: Determine if the first month's rent was paid (if payment information is available). Provide clear evidence (quote from document or explanation) or note if information is unavailable.
 
-4. VERIFY FIRST MONTH SDI PREMIUM PAYMENT: Determine if the first month's SDI premium was paid. Provide clear evidence (quote from document or explanation).
+4. VERIFY FIRST MONTH SDI PREMIUM PAYMENT: Determine if the first month's SDI premium was paid (if payment information is available). Provide clear evidence (quote from document or explanation) or note if information is unavailable.
 
-5. IDENTIFY MISSING REQUIRED DOCUMENTS: Check if all required documents are present.
+5. IDENTIFY AVAILABLE DOCUMENTS: List all documents that are present and their types. Note that all documents are optional - use whatever information is available.
 
 ${rulesText}
 
@@ -64,14 +64,14 @@ Return a JSON object matching this exact structure:
 {
   "trackingNumber": "${claim.trackingNumber}",
   "tenantName": "Full Name from Documents",
-  "status": "approved" or "declined" (decline if missing required documents or payment issues),
+  "status": "approved" or "declined" (ONLY decline if NO usable information exists - no documents AND no payment information AND no other usable information. Otherwise, approve and proceed with best effort using available information),
   "maxBenefit": ${claim.maxBenefit || 0},
   "monthlyRent": ${claim.monthlyRent || 0},
   "isFirstMonthPaid": true/false,
   "firstMonthPaidEvidence": "Evidence or explanation",
   "isFirstMonthSDIPremiumPaid": true/false,
   "firstMonthSDIPremiumPaidEvidence": "Evidence or explanation",
-  "missingRequiredDocuments": ["array", "of", "missing", "types"],
+  "missingRequiredDocuments": [] (always empty array - documents are optional),
   "submittedDocuments": [
     {
       "types": ["array", "of", "document", "types"],

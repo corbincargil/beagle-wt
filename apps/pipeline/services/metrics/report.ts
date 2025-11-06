@@ -46,6 +46,7 @@ export function formatAccuracyReport(
 	report += `Within 5%: ${metrics.payoutAccuracy.withinPercentage}\n`;
 	report += `Mean Absolute Error: $${metrics.payoutAccuracy.meanAbsoluteError.toFixed(2)}\n`;
 	report += `Mean Percentage Error: ${metrics.payoutAccuracy.meanPercentageError.toFixed(2)}%\n`;
+	report += `Symmetric Mean Absolute Percentage Error (SMAPE): ${metrics.payoutAccuracy.symmetricMeanAbsolutePercentageError.toFixed(2)}%\n`;
 	report += `Root Mean Squared Error: $${metrics.payoutAccuracy.rootMeanSquaredError.toFixed(2)}\n`;
 	report += `Max Error: $${metrics.payoutAccuracy.maxError.toFixed(2)}\n`;
 	report += `Min Error: $${metrics.payoutAccuracy.minError.toFixed(2)}\n\n`;

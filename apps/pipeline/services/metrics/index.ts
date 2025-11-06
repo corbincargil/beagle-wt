@@ -40,6 +40,7 @@ export interface AccuracyMetrics {
 		withinPercentage: number; // within 5% tolerance
 		meanAbsoluteError: number;
 		meanPercentageError: number;
+		symmetricMeanAbsolutePercentageError: number; // SMAPE
 		rootMeanSquaredError: number;
 		maxError: number;
 		minError: number;
@@ -178,6 +179,22 @@ export function calculateAccuracyMetrics(
 				payoutPercentageErrors.length
 			: 0;
 
+	// SMAPE (Symmetric Mean Absolute Percentage Error)
+	const symmetricMeanAbsolutePercentageError =
+		claimAccuracies.length > 0
+			? (100 / claimAccuracies.length) *
+				claimAccuracies.reduce((sum, acc) => {
+					const actual = acc.payoutGroundTruth;
+					const predicted = acc.payoutAI;
+					const denominator = (Math.abs(actual) + Math.abs(predicted)) / 2;
+					// Handle division by zero: if both are 0, error is 0
+					if (denominator === 0) {
+						return sum;
+					}
+					return sum + Math.abs(actual - predicted) / denominator;
+				}, 0)
+			: 0;
+
 	const rootMeanSquaredError =
 		payoutErrors.length > 0
 			? Math.sqrt(
@@ -201,6 +218,7 @@ export function calculateAccuracyMetrics(
 			withinPercentage,
 			meanAbsoluteError,
 			meanPercentageError,
+			symmetricMeanAbsolutePercentageError,
 			rootMeanSquaredError,
 			maxError,
 			minError,
