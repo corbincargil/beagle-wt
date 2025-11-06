@@ -5,8 +5,14 @@ import db, {
 	transformClaim,
 	transformClaimResult,
 	untransformClaim,
+	untransformClaimResult,
 } from "@beagle-wt/shared-db";
 import { eq } from "drizzle-orm";
+import { calculateAllClaimAccuracies } from "../metrics";
+import {
+	formatAccuracyReport,
+	saveAccuracyReportText,
+} from "../metrics/report";
 import { extractClaimDataFromString } from "../parsing";
 import { batchUploadDocuments } from "./batch-upload-documents";
 import { processAllClaims } from "./index";
@@ -137,6 +143,38 @@ export async function runPipeline(
 		console.log(
 			`\n✅ Processing complete: ${savedResultsCount} claim results saved to database${failedResultsCount > 0 ? ` (${failedResultsCount} failed)` : ""}`,
 		);
+
+		//* 5. Calculate accuracy metrics
+		console.log("\n📊 Calculating accuracy metrics...");
+		try {
+			// Fetch all results from database
+			const allResultsRows = await db.select().from(claimResults);
+			const allResults = allResultsRows.map((row) =>
+				untransformClaimResult(row),
+			);
+
+			// Calculate accuracy
+			const { claimAccuracies, metrics } = calculateAllClaimAccuracies(
+				allClaims,
+				allResults,
+			);
+
+			if (claimAccuracies.length > 0) {
+				// Save accuracy reports
+				const reportText = formatAccuracyReport(metrics, claimAccuracies);
+				console.log(`\n${reportText}`);
+
+				// Save reports to files
+				await saveAccuracyReportText(metrics, claimAccuracies);
+			} else {
+				console.log(
+					"⚠️  No ground truth data available for accuracy calculation",
+				);
+			}
+		} catch (error) {
+			console.error("✗ Error calculating accuracy:", error);
+			// Don't fail the pipeline if accuracy calculation fails
+		}
 
 		// Update job status to completed if jobId provided
 		if (jobId) {
