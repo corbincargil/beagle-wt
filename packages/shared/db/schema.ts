@@ -39,6 +39,7 @@ export const claims = pgTable("claims", {
 	policy: text("policy"),
 	maxBenefit: numeric("max_benefit"), // stored in cents
 	status: text("status").$type<"posted" | "declined">(),
+	approvedBenefitAmount: numeric("approved_benefit_amount"), // ground truth, stored in cents
 	documents: jsonb("documents").$type<Document[]>().notNull().default([]),
 	claudeFiles: jsonb("claude_files").$type<ClaudeFile[]>(),
 	createdAt: timestamp("created_at").defaultNow().notNull(),
