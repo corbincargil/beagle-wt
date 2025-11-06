@@ -23,7 +23,29 @@ export async function processClaimInitial(
 	// Validate with Zod
 	const validatedResult = InitialClaimResultSchema.parse(initialResult);
 
-	console.log(`✓ Phase 1 complete for claim ${claim.trackingNumber}`);
+	// Check if claim is declined - if so, return early with default values
+	if (validatedResult.status === "declined") {
+		console.log(
+			`⚠️  Claim ${claim.trackingNumber} declined in Phase 1 - skipping Phase 2`,
+		);
+		// Return a complete ClaimResult with default values for declined claims
+		const declinedResult = {
+			...validatedResult,
+			approvedCharges: [],
+			approvedChargesTotal: 0,
+			excludedCharges: [],
+			finalPayout: 0,
+			decisionSummary:
+				validatedResult.decisionSummary ||
+				`Claim declined. Missing documents: ${validatedResult.missingRequiredDocuments.join(", ") || "None"}. First month rent paid: ${validatedResult.isFirstMonthPaid}. First month SDI premium paid: ${validatedResult.isFirstMonthSDIPremiumPaid}.`,
+		};
+		// Validate with full ClaimResult schema to ensure completeness
+		return ClaimResultSchema.parse(declinedResult);
+	}
+
+	console.log(
+		`✓ Phase 1 complete for claim ${claim.trackingNumber} - approved, proceeding to Phase 2`,
+	);
 	return validatedResult;
 }
 
@@ -81,15 +103,23 @@ export async function processAllClaims(
 			// Phase 1: Initial analysis
 			const initialResult = await processClaimInitial(claim);
 
-			// Only proceed to Phase 2 if claim passed initial validation
-			const finalResult = await processClaimCharges(claim, initialResult);
+			let finalResult: Omit<ClaimResult, "id">;
+
+			// Only proceed to Phase 2 if claim is approved
+			if (initialResult.status === "approved") {
+				// Phase 2: Charges analysis (only for approved claims)
+				finalResult = await processClaimCharges(claim, initialResult);
+			} else {
+				// Claim was declined in Phase 1 - use initial result with default charge values
+				finalResult = initialResult;
+			}
 
 			results.push(finalResult);
 
 			// Call the callback immediately if provided (for incremental saving)
 			if (onResultProcessed) {
 				try {
-					await onResultProcessed(initialResult);
+					await onResultProcessed(finalResult);
 				} catch (error) {
 					console.error(
 						`✗ Error in onResultProcessed callback for claim ${claim.trackingNumber}:`,
@@ -98,7 +128,9 @@ export async function processAllClaims(
 				}
 			}
 
-			console.log(`✓ Completed processing claim ${claim.trackingNumber}\n`);
+			console.log(
+				`✓ Completed processing claim ${claim.trackingNumber} (status: ${finalResult.status})\n`,
+			);
 		} catch (error) {
 			console.error(`✗ Error processing claim ${claim.trackingNumber}:`, error);
 		}
