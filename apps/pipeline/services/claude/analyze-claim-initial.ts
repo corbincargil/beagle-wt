@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { BetaContentBlockParam } from "@anthropic-ai/sdk/resources/beta.mjs";
 import type { ClaimRecord } from "../../../../packages/shared/types/claims";
 import type { InitialClaimResult } from "../processing/validation";
+import { formatRulesForPrompt } from "./rules";
 
 const CLAUDE_API_KEY = process.env.ANTHROPIC_API_KEY;
 
@@ -32,16 +33,13 @@ export async function analyzeClaimInitial(
 	// Extract file IDs from claudeFiles
 	const fileIds = claim.claudeFiles.map((file) => file.id);
 
-	// Build the prompt with claim information
+	// Load rules from configuration
+	const rulesText = formatRulesForPrompt();
+
+	// Build the prompt with claim information and rules
 	const prompt = `You are analyzing a Security Deposit Insurance (SDI) claim. Your task is to:
 
-1. CLASSIFY DOCUMENTS: For each document, classify its type(s). A document can have multiple types. The possible types are:
-   - "lease_addendum": Security deposit addendum or SDI addendum
-   - "lease_agreement": The main lease agreement
-   - "notification_to_tenant": Move-out notice or notification sent to tenant
-   - "tenant_ledger": Account ledger showing charges and payments
-   - "invoice": Invoice or bill for charges
-   - "claim_evaluation_report": Report evaluating the claim
+1. CLASSIFY DOCUMENTS: For each document, classify its type(s). A document can have multiple types.
 
 2. EXTRACT TENANT NAME: Find and extract the tenant's full name from the documents.
 
@@ -49,11 +47,9 @@ export async function analyzeClaimInitial(
 
 4. VERIFY FIRST MONTH SDI PREMIUM PAYMENT: Determine if the first month's SDI premium was paid. Provide clear evidence (quote from document or explanation).
 
-5. IDENTIFY MISSING REQUIRED DOCUMENTS: Check if all required documents are present. Required documents are:
-   - lease_addendum
-   - lease_agreement
-   - notification_to_tenant
-   - tenant_ledger
+5. IDENTIFY MISSING REQUIRED DOCUMENTS: Check if all required documents are present.
+
+${rulesText}
 
 Claim Information:
 - Tracking Number: ${claim.trackingNumber}
@@ -104,7 +100,7 @@ Important: Return ONLY valid JSON, no markdown formatting or code blocks.`;
 
 		const message = await anthropic.beta.messages.create({
 			model: "claude-sonnet-4-5",
-			max_tokens: 1024,
+			max_tokens: 4096,
 			messages: [
 				{
 					role: "user",
@@ -120,7 +116,7 @@ Important: Return ONLY valid JSON, no markdown formatting or code blocks.`;
 			betas: ["files-api-2025-04-14"],
 		});
 
-		// Extract the text content from the response
+		// Extract the structured content from the response
 		const responseContent = message.content[0];
 		if (responseContent?.type !== "text") {
 			throw new Error("Expected text response from Claude");
@@ -130,8 +126,10 @@ Important: Return ONLY valid JSON, no markdown formatting or code blocks.`;
 		const responseText = responseContent.text.trim();
 		// Remove markdown code blocks if present
 		const jsonText = responseText
-			.replace(/^```json\s*|\s*```$/g, "")
-			.replace(/^```\s*|\s*```$/g, "");
+			.replace(/^```json\s*/i, "")
+			.replace(/^```\s*/i, "")
+			.replace(/\s*```$/g, "")
+			.trim();
 
 		const result = JSON.parse(jsonText) as InitialClaimResult;
 
