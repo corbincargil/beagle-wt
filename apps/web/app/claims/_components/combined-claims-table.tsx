@@ -26,6 +26,7 @@ interface CombinedClaim {
 	claimResultId: string | null;
 	tenantName: string | null;
 	finalPayout: string | null;
+	approvedBenefitAmount: string | null;
 	approvedChargesTotal: string | null;
 	resultStatus: "approved" | "declined" | null;
 	decisionSummary: string | null;
@@ -56,6 +57,8 @@ export default function CombinedClaimsTable() {
 						<TableHead>Tenant Name</TableHead>
 						<TableHead>Result Status</TableHead>
 						<TableHead>Final Payout</TableHead>
+						<TableHead>Approved Payout</TableHead>
+						<TableHead>Difference</TableHead>
 						<TableHead>Max Benefit</TableHead>
 						<TableHead>Property Address</TableHead>
 						<TableHead>Claim Status</TableHead>
@@ -96,6 +99,24 @@ export default function CombinedClaimsTable() {
 								{claim.finalPayout
 									? currencyFormatter.format(
 											centsToDollars(Number(claim.finalPayout)),
+										)
+									: "—"}
+							</TableCell>
+							<TableCell>
+								{claim.approvedBenefitAmount
+									? currencyFormatter.format(
+											centsToDollars(Number(claim.approvedBenefitAmount)),
+										)
+									: "—"}
+							</TableCell>
+							<TableCell>
+								{Number(claim.finalPayout ?? 0) -
+								Number(claim.approvedBenefitAmount ?? 0)
+									? currencyFormatter.format(
+											centsToDollars(
+												Number(claim.approvedBenefitAmount ?? 0) -
+													Number(claim.finalPayout ?? 0),
+											),
 										)
 									: "—"}
 							</TableCell>

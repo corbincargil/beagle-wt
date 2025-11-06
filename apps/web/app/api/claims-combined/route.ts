@@ -13,6 +13,7 @@ export async function GET() {
 			monthlyRent: claims.monthlyRent,
 			maxBenefit: claims.maxBenefit,
 			claimStatus: claims.status,
+			approvedBenefitAmount: claims.approvedBenefitAmount,
 			// Fields from claimResults (nullable)
 			claimResultId: claimResults.id,
 			tenantName: claimResults.tenantName,
