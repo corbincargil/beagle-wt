@@ -1,7 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { pipelineJobsApi, type PipelineJob } from "@/lib/api/client";
+import { type PipelineJob, pipelineJobsApi } from "@/lib/api/client";
 import { dateFormatter } from "@/lib/formatters";
 import ErrorMessage from "../../claims/_components/error-message";
 import Loading from "../../claims/_components/loading";

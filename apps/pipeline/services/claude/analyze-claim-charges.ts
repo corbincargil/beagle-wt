@@ -4,6 +4,7 @@ import type {
 	ClaimRecord,
 	ClaimResult,
 } from "../../../../packages/shared/types/claims";
+import { getChargeClassificationRules } from "./rules";
 
 const CLAUDE_API_KEY = process.env.ANTHROPIC_API_KEY;
 
@@ -36,6 +37,9 @@ export async function analyzeClaimCharges(
 	// Extract file IDs from claudeFiles
 	const fileIds = claim.claudeFiles.map((file) => file.id);
 
+	// Load charge classification rules from configuration
+	const chargeRulesText = getChargeClassificationRules();
+
 	// Build the prompt for charges analysis
 	const prompt = `You are analyzing charges for a Security Deposit Insurance (SDI) claim. Your task is to:
 
@@ -45,20 +49,14 @@ export async function analyzeClaimCharges(
    - Invoices
    - Claim evaluation reports
 
-2. CLASSIFY CHARGES: For each charge, determine if it is:
-   - APPROVED (covered by SDI policy): Normal wear and tear, cleaning, repairs, damages that are tenant's responsibility
-   - EXCLUDED (not covered by SDI policy): 
-     * Unpaid rent
-     * Late fees
-     * Pet fees/damages
-     * Non-refundable fees
-     * Charges clearly outside the lease terms
-     * Charges that exceed reasonable amounts
+2. CLASSIFY CHARGES: For each charge, determine if it is approved or excluded based on the SDI policy rules.
 
 3. PROVIDE DETAILS: For each charge, provide:
    - description: Clear description of the charge
    - amount: The dollar amount (as a number)
    - category: Optional category (e.g., "cleaning", "repair", "damage", "unpaid_rent", etc.)
+
+${chargeRulesText}
 
 Claim Information:
 - Tracking Number: ${claim.trackingNumber}
@@ -72,30 +70,15 @@ Initial Analysis Results:
 - First Month Rent Paid: ${initialResult.isFirstMonthPaid} (${initialResult.firstMonthPaidEvidence})
 - First Month SDI Premium Paid: ${initialResult.isFirstMonthSDIPremiumPaid} (${initialResult.firstMonthSDIPremiumPaidEvidence})
 
-Return a JSON object with this structure:
+Analyze all charges and return a JSON object matching this exact structure:
 {
-  "approvedCharges": [
-    {
-      "description": "Description of approved charge",
-      "amount": 100.00,
-      "category": "cleaning"
-    }
-  ],
-  "excludedCharges": [
-    {
-      "description": "Description of excluded charge",
-      "amount": 50.00,
-      "category": "unpaid_rent"
-    }
-  ],
-  "decisionSummary": "A comprehensive summary explaining: why the claim was approved or declined, key findings from document analysis, rationale for charge classifications, and any important notes."
+  "approvedCharges": [],
+  "approvedChargesTotal": 0,
+  "excludedCharges": [],
+  "decisionSummary": ""
 }
 
-Important: 
-- Return ONLY valid JSON, no markdown formatting or code blocks.
-- Calculate amounts accurately from the documents.
-- Be thorough in finding all charges.
-- The decision summary should be detailed and professional.`;
+Important: Return ONLY valid JSON, no markdown formatting or code blocks.`;
 
 	try {
 		// Build content array with text prompt and file references
@@ -132,7 +115,7 @@ Important:
 			);
 		}
 
-		// Extract the text content from the response
+		// Extract the structured content from the response
 		const responseContent = message.content[0];
 		if (responseContent?.type !== "text") {
 			throw new Error("Expected text response from Claude");
@@ -142,8 +125,10 @@ Important:
 		const responseText = responseContent.text.trim();
 		// Remove markdown code blocks if present
 		const jsonText = responseText
-			.replace(/^```json\s*|\s*```$/g, "")
-			.replace(/^```\s*|\s*```$/g, "");
+			.replace(/^```json\s*/i, "")
+			.replace(/^```\s*/i, "")
+			.replace(/\s*```$/g, "")
+			.trim();
 
 		const chargesAnalysis = JSON.parse(jsonText) as {
 			approvedCharges: Array<{

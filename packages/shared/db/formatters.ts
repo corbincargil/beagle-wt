@@ -4,6 +4,15 @@ import type {
 	ClaudeFile,
 	Document,
 } from "../types/claims";
+
+type DocumentType =
+	| "lease_addendum"
+	| "lease_agreement"
+	| "notification_to_tenant"
+	| "tenant_ledger"
+	| "invoice"
+	| "claim_evaluation_report";
+
 import { centsToDollars, dollarsToCents } from "./currency";
 
 /**
@@ -86,6 +95,9 @@ export function transformClaim(record: Omit<ClaimRecord, "id">) {
 			? String(dollarsToCents(record.maxBenefit))
 			: null,
 		status: record.status ?? null,
+		approvedBenefitAmount: record.approvedBenefitAmount
+			? String(dollarsToCents(record.approvedBenefitAmount))
+			: null,
 		documents: record.documents,
 		claudeFiles: record.claudeFiles ?? null,
 	};
@@ -112,6 +124,7 @@ export function untransformClaim(row: {
 	policy: string | null;
 	maxBenefit: string | null;
 	status: "posted" | "declined" | null;
+	approvedBenefitAmount: string | null;
 	documents: Document[];
 	claudeFiles: ClaudeFile[] | null;
 }): ClaimRecord {
@@ -134,7 +147,57 @@ export function untransformClaim(row: {
 			? centsToDollars(parseFloat(row.maxBenefit))
 			: undefined,
 		status: row.status ?? undefined,
+		approvedBenefitAmount: row.approvedBenefitAmount
+			? centsToDollars(parseFloat(row.approvedBenefitAmount))
+			: undefined,
 		documents: row.documents,
 		claudeFiles: row.claudeFiles ?? undefined,
+	};
+}
+
+/**
+ * Transforms a database row back to ClaimResult format
+ * Converts cents (numeric strings) back to dollars
+ * @param row - Database row from claim_results table
+ * @returns ClaimResult object
+ */
+export function untransformClaimResult(row: {
+	id: string;
+	trackingNumber: string;
+	tenantName: string;
+	status: "approved" | "declined";
+	maxBenefit: string;
+	monthlyRent: string;
+	isFirstMonthPaid: boolean;
+	firstMonthPaidEvidence: string | null;
+	isFirstMonthSDIPremiumPaid: boolean;
+	firstMonthSDIPremiumPaidEvidence: string | null;
+	missingRequiredDocuments: DocumentType[];
+	submittedDocuments: Document[];
+	approvedCharges: ChargeItem[];
+	approvedChargesTotal: string;
+	excludedCharges: ChargeItem[];
+	finalPayout: string;
+	decisionSummary: string;
+}): ClaimResult {
+	return {
+		id: row.id,
+		trackingNumber: row.trackingNumber,
+		tenantName: row.tenantName,
+		status: row.status,
+		maxBenefit: centsToDollars(parseFloat(row.maxBenefit)),
+		monthlyRent: centsToDollars(parseFloat(row.monthlyRent)),
+		isFirstMonthPaid: row.isFirstMonthPaid,
+		firstMonthPaidEvidence: row.firstMonthPaidEvidence ?? "",
+		isFirstMonthSDIPremiumPaid: row.isFirstMonthSDIPremiumPaid,
+		firstMonthSDIPremiumPaidEvidence:
+			row.firstMonthSDIPremiumPaidEvidence ?? "",
+		missingRequiredDocuments: row.missingRequiredDocuments,
+		submittedDocuments: row.submittedDocuments,
+		approvedCharges: row.approvedCharges,
+		approvedChargesTotal: centsToDollars(parseFloat(row.approvedChargesTotal)),
+		excludedCharges: row.excludedCharges,
+		finalPayout: centsToDollars(parseFloat(row.finalPayout)),
+		decisionSummary: row.decisionSummary,
 	};
 }

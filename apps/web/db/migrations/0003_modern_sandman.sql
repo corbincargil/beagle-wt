@@ -1,0 +1,1 @@
+ALTER TABLE "claims" ADD COLUMN "approved_benefit_amount" numeric;
