@@ -75,9 +75,50 @@ export async function processClaimCharges(
 }
 
 /**
- * Processes all claims sequentially through both phases
- * Phase 1: Initial analysis and validation
- * Phase 2: Charges analysis (only for valid claims)
+ * Helper function to process a single claim through Phase 1
+ * Wrapped for use with Promise.allSettled
+ */
+async function processClaimPhase1(claim: ClaimRecord): Promise<{
+	claim: ClaimRecord;
+	result: Omit<ClaimResult, "id"> | null;
+	error: Error | null;
+}> {
+	try {
+		const result = await processClaimInitial(claim);
+		return { claim, result, error: null };
+	} catch (error) {
+		const err = error instanceof Error ? error : new Error(String(error));
+		console.error(`✗ Error in Phase 1 for claim ${claim.trackingNumber}:`, err);
+		return { claim, result: null, error: err };
+	}
+}
+
+/**
+ * Helper function to process an approved claim through Phase 2
+ * Wrapped for use with Promise.allSettled
+ */
+async function processClaimPhase2(
+	claim: ClaimRecord,
+	initialResult: Omit<ClaimResult, "id">,
+): Promise<{
+	claim: ClaimRecord;
+	result: Omit<ClaimResult, "id"> | null;
+	error: Error | null;
+}> {
+	try {
+		const result = await processClaimCharges(claim, initialResult);
+		return { claim, result, error: null };
+	} catch (error) {
+		const err = error instanceof Error ? error : new Error(String(error));
+		console.error(`✗ Error in Phase 2 for claim ${claim.trackingNumber}:`, err);
+		return { claim, result: null, error: err };
+	}
+}
+
+/**
+ * Processes all claims in parallel through both phases
+ * Phase 1: Initial analysis and validation (all claims processed in parallel)
+ * Phase 2: Charges analysis (only approved claims processed in parallel)
  * @param claims - Array of claim records with uploaded Claude files
  * @param onResultProcessed - Optional callback to be called immediately after each claim is processed
  * @returns Array of complete ClaimResult objects
@@ -87,54 +128,152 @@ export async function processAllClaims(
 	onResultProcessed?: (result: Omit<ClaimResult, "id">) => Promise<void>,
 ): Promise<Omit<ClaimResult, "id">[]> {
 	const results: Omit<ClaimResult, "id">[] = [];
+	const totalClaims = claims.length;
 
-	for (let i = 0; i < claims.length; i++) {
-		const claim = claims[i];
+	// Filter out undefined claims
+	const validClaims = claims.filter((claim, index) => {
 		if (!claim) {
-			console.warn(`Warning: Claim at index ${i} is undefined, skipping...`);
-			continue;
+			console.warn(
+				`Warning: Claim at index ${index} is undefined, skipping...`,
+			);
+			return false;
 		}
+		return true;
+	});
 
-		console.log(
-			`\n📋 Processing claim ${i + 1}/${claims.length}: ${claim.trackingNumber}`,
-		);
+	if (validClaims.length === 0) {
+		console.warn("No valid claims to process");
+		return results;
+	}
 
-		try {
-			// Phase 1: Initial analysis
-			const initialResult = await processClaimInitial(claim);
+	// Phase 1: Process all claims in parallel
+	console.log(
+		`\n🔍 Phase 1: Processing ${validClaims.length} claims in parallel...`,
+	);
+	const phase1Results = await Promise.allSettled(
+		validClaims.map((claim) => processClaimPhase1(claim)),
+	);
 
-			let finalResult: Omit<ClaimResult, "id">;
+	// Process Phase 1 results
+	const phase1Successes: Array<{
+		claim: ClaimRecord;
+		result: Omit<ClaimResult, "id">;
+	}> = [];
+	const phase1Errors: Array<{ claim: ClaimRecord; error: Error }> = [];
+	const declinedClaims: Array<Omit<ClaimResult, "id">> = [];
 
-			// Only proceed to Phase 2 if claim is approved
-			if (initialResult.status === "approved") {
-				// Phase 2: Charges analysis (only for approved claims)
-				finalResult = await processClaimCharges(claim, initialResult);
-			} else {
-				// Claim was declined in Phase 1 - use initial result with default charge values
-				finalResult = initialResult;
+	for (const settled of phase1Results) {
+		if (settled.status === "fulfilled") {
+			const { claim, result, error } = settled.value;
+			if (error) {
+				phase1Errors.push({ claim, error });
+			} else if (result) {
+				if (result.status === "declined") {
+					declinedClaims.push(result);
+				} else {
+					phase1Successes.push({ claim, result });
+				}
 			}
+		} else {
+			// Promise itself was rejected
+			console.error("Phase 1 promise rejected:", settled.reason);
+		}
+	}
 
-			results.push(finalResult);
+	console.log(
+		`✓ Phase 1 complete: ${phase1Successes.length} approved, ${declinedClaims.length} declined, ${phase1Errors.length} errors`,
+	);
 
-			// Call the callback immediately if provided (for incremental saving)
-			if (onResultProcessed) {
+	// Save declined claims immediately
+	if (declinedClaims.length > 0 && onResultProcessed) {
+		console.log(`\n💾 Saving ${declinedClaims.length} declined claims...`);
+		await Promise.allSettled(
+			declinedClaims.map(async (result) => {
 				try {
-					await onResultProcessed(finalResult);
+					await onResultProcessed(result);
+					console.log(`✓ Saved declined claim ${result.trackingNumber}`);
 				} catch (error) {
 					console.error(
-						`✗ Error in onResultProcessed callback for claim ${claim.trackingNumber}:`,
+						`✗ Error saving declined claim ${result.trackingNumber}:`,
 						error,
 					);
 				}
-			}
+			}),
+		);
+		results.push(...declinedClaims);
+	}
 
-			console.log(
-				`✓ Completed processing claim ${claim.trackingNumber} (status: ${finalResult.status})\n`,
+	// Phase 2: Process approved claims in parallel
+	if (phase1Successes.length > 0) {
+		console.log(
+			`\n🔍 Phase 2: Processing ${phase1Successes.length} approved claims in parallel...`,
+		);
+		const phase2Results = await Promise.allSettled(
+			phase1Successes.map(({ claim, result }) =>
+				processClaimPhase2(claim, result),
+			),
+		);
+
+		// Process Phase 2 results
+		const phase2Successes: Array<Omit<ClaimResult, "id">> = [];
+		const phase2Errors: Array<{ claim: ClaimRecord; error: Error }> = [];
+
+		for (const settled of phase2Results) {
+			if (settled.status === "fulfilled") {
+				const { claim, result, error } = settled.value;
+				if (error) {
+					phase2Errors.push({ claim, error });
+				} else if (result) {
+					phase2Successes.push(result);
+				}
+			} else {
+				console.error("Phase 2 promise rejected:", settled.reason);
+			}
+		}
+
+		console.log(
+			`✓ Phase 2 complete: ${phase2Successes.length} successful, ${phase2Errors.length} errors`,
+		);
+
+		// Save approved claims
+		if (phase2Successes.length > 0 && onResultProcessed) {
+			console.log(`\n💾 Saving ${phase2Successes.length} approved claims...`);
+			await Promise.allSettled(
+				phase2Successes.map(async (result) => {
+					try {
+						await onResultProcessed(result);
+						console.log(`✓ Saved approved claim ${result.trackingNumber}`);
+					} catch (error) {
+						console.error(
+							`✗ Error saving approved claim ${result.trackingNumber}:`,
+							error,
+						);
+					}
+				}),
 			);
-		} catch (error) {
-			console.error(`✗ Error processing claim ${claim.trackingNumber}:`, error);
+			results.push(...phase2Successes);
+		}
+
+		// Log any Phase 2 errors
+		for (const { claim, error } of phase2Errors) {
+			console.error(
+				`✗ Failed to process Phase 2 for claim ${claim.trackingNumber}:`,
+				error.message,
+			);
 		}
 	}
+
+	// Log any Phase 1 errors
+	for (const { claim, error } of phase1Errors) {
+		console.error(
+			`✗ Failed to process Phase 1 for claim ${claim.trackingNumber}:`,
+			error.message,
+		);
+	}
+
+	console.log(
+		`\n✅ Completed processing: ${results.length}/${totalClaims} claims processed successfully`,
+	);
 
 	return results;
 }
